@@ -562,7 +562,10 @@ export function ProductSearch() {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {results.stores.map((result, index) => {
+              {results.stores.filter(result => result != null).map((result, index) => {
+                // Safety check - skip if result is null or undefined
+                if (!result) return null;
+                
                 const isOnline = 'isOnline' in result && result.isOnline;
                 const onlineResult = isOnline ? result as OnlineStore : null;
                 const localResult = !isOnline ? result as Store : null;
@@ -596,37 +599,37 @@ export function ProductSearch() {
                         <div className="flex-1">
                           <div className="flex justify-between items-start mb-3">
                             <div>
-                              <h3 className="text-xl font-semibold mb-1">
-                                {isOnline ? onlineResult!.name : localResult!.store.name}
-                              </h3>
-                              <p className="text-sm text-muted-foreground mb-2">
-                                Selling {isOnline ? onlineResult!.product.name : localResult!.product.name}
-                              </p>
+                               <h3 className="text-xl font-semibold mb-1">
+                                 {isOnline ? onlineResult?.name || 'Unknown Store' : localResult?.store?.name || 'Unknown Store'}
+                               </h3>
+                               <p className="text-sm text-muted-foreground mb-2">
+                                 Selling {isOnline ? onlineResult?.product?.name || 'Unknown Product' : localResult?.product?.name || 'Unknown Product'}
+                               </p>
                             </div>
-                            <Badge 
-                              variant="outline" 
-                              className={getStoreTypeColor(isOnline ? onlineResult!.store_type : localResult!.store.store_type)}
-                            >
-                              {isOnline ? onlineResult!.store_type : localResult!.store.store_type}
-                            </Badge>
-                          </div>
-                          
-                           <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                             <div className="flex items-center gap-2">
-                               <MapPin className="h-4 w-4" />
-                               <span>{isOnline ? onlineResult!.address : localResult!.store.address}</span>
-                             </div>
-                             {!isOnline && localResult!.distance && (
-                               <div className="flex items-center gap-2">
-                                 <span className="ml-6">{localResult!.distance.toFixed(1)} km away</span>
-                               </div>
-                             )}
-                             {!isOnline && localResult!.store.phone && (
-                               <div className="flex items-center gap-2">
-                                 <Phone className="h-4 w-4" />
-                                 <span>{localResult!.store.phone}</span>
-                               </div>
-                             )}
+                             <Badge 
+                               variant="outline" 
+                               className={getStoreTypeColor(isOnline ? onlineResult?.store_type || 'other' : localResult?.store?.store_type || 'other')}
+                             >
+                               {isOnline ? onlineResult?.store_type || 'other' : localResult?.store?.store_type || 'other'}
+                             </Badge>
+                           </div>
+                           
+                            <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4" />
+                                <span>{isOnline ? onlineResult?.address || 'Address not available' : localResult?.store?.address || 'Address not available'}</span>
+                              </div>
+                              {!isOnline && localResult?.distance && (
+                                <div className="flex items-center gap-2">
+                                  <span className="ml-6">{localResult.distance.toFixed(1)} km away</span>
+                                </div>
+                              )}
+                              {!isOnline && localResult?.store?.phone && (
+                                <div className="flex items-center gap-2">
+                                  <Phone className="h-4 w-4" />
+                                  <span>{localResult.store.phone}</span>
+                                </div>
+                              )}
                              {!isOnline && (localResult as any).verification && (
                                <div className="flex items-center gap-2">
                                  {(localResult as any).verification.verified ? (
@@ -654,10 +657,10 @@ export function ProductSearch() {
                            </div>
                           
                           <div className="flex items-center gap-3">
-                            {isOnline && onlineResult!.url && (
+                            {isOnline && onlineResult?.url && (
                               <Button variant="default" size="sm" asChild>
                                 <a 
-                                  href={onlineResult!.url} 
+                                  href={onlineResult.url} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
                                   className="flex items-center gap-2"
