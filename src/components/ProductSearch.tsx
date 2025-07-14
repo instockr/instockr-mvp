@@ -342,15 +342,16 @@ const geocodeLocation = async (locationStr: string) => {
 
       console.log(`Combined ${combinedStores.length} physical stores from all sources`);
 
-      // Step 4: Unified deduplication across ALL results
-      const deduplicationResponse = await supabase.functions.invoke('unified-deduplication', {
+      // Step 4: Simple address-based deduplication (no LLM)
+      console.log('Step 4: Simple address-based deduplication');
+      const deduplicationResponse = await supabase.functions.invoke('simple-deduplication', {
         body: { stores: combinedStores }
       });
 
       let finalStores = combinedStores;
-      if (deduplicationResponse.data && deduplicationResponse.data.stores) {
-        finalStores = deduplicationResponse.data.stores;
-        console.log(`Deduplicated to ${finalStores.length} unique stores`);
+      if (deduplicationResponse.data && deduplicationResponse.data.deduplicatedStores) {
+        finalStores = deduplicationResponse.data.deduplicatedStores;
+        console.log(`Simple deduplication: reduced from ${combinedStores.length} to ${finalStores.length} stores`);
       }
 
       // Step 5: Verify ALL stores with Google Maps (required for physical stores)
