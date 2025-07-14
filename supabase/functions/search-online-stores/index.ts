@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { productName, location, searchRadius, physicalOnly } = await req.json();
+    const { productName, location, searchRadius, physicalOnly, userLat, userLng } = await req.json();
 
     if (!productName) {
       return new Response(
@@ -43,27 +43,44 @@ serve(async (req) => {
 
     console.log('Searching for physical stores selling:', productName);
     console.log('Location:', location, 'Physical only:', physicalOnly);
+    console.log('User coordinates:', userLat, userLng);
+
+    // Parse location coordinates if provided as string
+    let searchLat = userLat;
+    let searchLng = userLng;
+    if (typeof location === 'string' && location.includes(',')) {
+      const [lat, lng] = location.split(',').map(coord => parseFloat(coord.trim()));
+      if (!isNaN(lat) && !isNaN(lng)) {
+        searchLat = lat;
+        searchLng = lng;
+      }
+    }
+
+    // Create location-specific search queries
+    const locationQuery = searchLat && searchLng ? 
+      ` vicino ${searchLat.toFixed(4)},${searchLng.toFixed(4)} raggio 50km` : 
+      ' Italia';
 
     // Generate searches for physical stores that sell this product
     const searchSources = [
       {
         name: 'Physical Store Search',
-        query: `${productName} negozio fisico punto vendita Italia indirizzo telefono`,
+        query: `${productName} negozio fisico punto vendita${locationQuery} indirizzo telefono`,
         limit: 5
       },
       {
         name: 'Store Locator Search',
-        query: `${productName} "dove comprare" "trova negozio" "store locator" Italia`,
+        query: `${productName} "dove comprare" "trova negozio" "store locator"${locationQuery}`,
         limit: 4
       },
       {
         name: 'Chain Stores Search',
-        query: `${productName} MediaWorld Unieuro Trony Euronics "punti vendita" negozi`,
+        query: `${productName} MediaWorld Unieuro Trony Euronics "punti vendita" negozi${locationQuery}`,
         limit: 4
       },
       {
         name: 'Local Retailers',
-        query: `${productName} negozio locale rivenditore autorizzato Italia`,
+        query: `${productName} negozio locale rivenditore autorizzato${locationQuery}`,
         limit: 3
       }
     ];
@@ -182,7 +199,9 @@ serve(async (req) => {
                 },
                 url: result.url,
                 isOnline: !hasPhysicalIndicators, // Mark as online if no physical indicators found
-                source: source.name
+                source: source.name,
+                userLat: searchLat,
+                userLng: searchLng
               });
             }
           });

@@ -147,7 +147,22 @@ export function ProductSearch() {
     );
   };
 
-  const geocodeLocation = async (locationStr: string) => {
+// Calculate distance between two points using Haversine formula
+const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const geocodeLocation = async (locationStr: string) => {
     // Check if it's already coordinates (lat, lng format)
     const coordMatch = locationStr.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
     if (coordMatch) {
@@ -279,7 +294,9 @@ export function ProductSearch() {
               productName: searchTerm,
               location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
               searchRadius: '50km',
-              physicalOnly: true // Add flag to search for physical stores only
+              physicalOnly: true, // Add flag to search for physical stores only
+              userLat: locationCoords?.lat || 45.4642,
+              userLng: locationCoords?.lng || 9.19
             }
           });
           searchPromises.push(firecrawlPromise.then(result => ({ source: 'firecrawl', strategy: searchTerm, result })));
@@ -345,10 +362,25 @@ export function ProductSearch() {
               });
               
               if (verificationResponse.data?.verified) {
-                verifiedStores.push({
+                let storeWithVerification = {
                   ...store,
                   verification: verificationResponse.data
-                });
+                };
+                
+                // Calculate distance if user location and store coordinates are available
+                if (locationCoords && verificationResponse.data.geometry?.location) {
+                  const storeLat = verificationResponse.data.geometry.location.lat;
+                  const storeLng = verificationResponse.data.geometry.location.lng;
+                  const distance = calculateDistance(
+                    locationCoords.lat, 
+                    locationCoords.lng, 
+                    storeLat, 
+                    storeLng
+                  );
+                  storeWithVerification = { ...storeWithVerification, distance: Math.round(distance * 100) / 100 };
+                }
+                
+                verifiedStores.push(storeWithVerification);
               }
             }
           } catch (error) {
@@ -356,8 +388,22 @@ export function ProductSearch() {
           }
         }
         
-        finalStores = verifiedStores;
+        // Sort verified stores by distance if available
+        finalStores = verifiedStores.sort((a: any, b: any) => {
+          // Sort by distance (nulls last)
+          if (a.distance === null && b.distance === null) return 0;
+          if (a.distance === null) return 1;
+          if (b.distance === null) return -1;
+          return a.distance - b.distance;
+        });
+        
         console.log(`Google Maps verified ${finalStores.length} stores`);
+        if (finalStores.length > 0 && finalStores[0].distance !== undefined) {
+          console.log('Stores sorted by distance:', finalStores.slice(0, 3).map((s: any) => ({ 
+            name: s.name || s.store?.name, 
+            distance: s.distance 
+          })));
+        }
       }
 
       setResults({
@@ -613,8 +659,8 @@ export function ProductSearch() {
                             {/* Distance (if available) */}
                             {distance && (
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="text-sm text-muted-foreground ml-6">
-                                  {distance.toFixed(1)} km away
+                                <span className="text-sm font-medium text-blue-600 ml-6">
+                                  📍 {distance.toFixed(1)} km away
                                 </span>
                               </div>
                             )}
