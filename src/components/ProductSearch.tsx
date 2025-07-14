@@ -62,7 +62,7 @@ export function ProductSearch() {
   const [results, setResults] = useState<SearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [includeOnline, setIncludeOnline] = useState(true);
+  
   const { toast } = useToast();
 
   // Popular cities for quick suggestions
@@ -215,15 +215,13 @@ export function ProductSearch() {
       });
       searchPromises.push(localSearchPromise);
 
-      // Search online stores if enabled
-      if (includeOnline) {
-        const onlineSearchPromise = supabase.functions.invoke('search-online-stores', {
-          body: {
-            productName: productName.trim()
-          }
-        });
-        searchPromises.push(onlineSearchPromise);
-      }
+      // Always search online stores for additional location data
+      const onlineSearchPromise = supabase.functions.invoke('search-online-stores', {
+        body: {
+          productName: productName.trim()
+        }
+      });
+      searchPromises.push(onlineSearchPromise);
 
       const searchResults = await Promise.allSettled(searchPromises);
       
@@ -237,15 +235,13 @@ export function ProductSearch() {
         totalFound += localResult.value.data.stores.length;
       }
 
-      // Process online results if included
-      if (includeOnline && searchResults[1]) {
-        const onlineResult = searchResults[1];
-        if (onlineResult.status === 'fulfilled' && onlineResult.value.data?.stores) {
-          allStores = [...allStores, ...onlineResult.value.data.stores];
-          totalFound += onlineResult.value.data.stores.length;
-        } else if (onlineResult.status === 'rejected') {
-          console.error('Online search failed:', onlineResult.reason);
-        }
+      // Process online results
+      const onlineResult = searchResults[1];
+      if (onlineResult.status === 'fulfilled' && onlineResult.value.data?.stores) {
+        allStores = [...allStores, ...onlineResult.value.data.stores];
+        totalFound += onlineResult.value.data.stores.length;
+      } else if (onlineResult.status === 'rejected') {
+        console.error('Online search failed:', onlineResult.reason);
       }
 
       setResults({
@@ -389,19 +385,6 @@ export function ProductSearch() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="includeOnline"
-              checked={includeOnline}
-              onChange={(e) => setIncludeOnline(e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            <label htmlFor="includeOnline" className="text-sm font-medium flex items-center gap-2">
-              <Globe className="h-4 w-4" />
-              Include online stores
-            </label>
-          </div>
 
           <Button 
             onClick={handleSearch} 
