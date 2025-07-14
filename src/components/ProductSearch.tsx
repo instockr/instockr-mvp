@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, MapPin, Loader2, Globe, Store, ExternalLink, ChevronDown } from "lucide-react";
+import { Search, MapPin, Loader2, Globe, Store, ExternalLink, ChevronDown, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -471,101 +471,73 @@ export function ProductSearch() {
                 const localResult = !isOnline ? result as Store : null;
                 
                 return (
-                  <Card key={index} className="hover:shadow-md transition-shadow">
+                  <Card key={index} className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-semibold">
-                              {isOnline ? onlineResult!.name : localResult!.store.name}
-                            </h3>
-                            {isOnline ? (
-                              <Badge variant="outline" className="flex items-center gap-1">
-                                <Globe className="h-3 w-3" />
-                                Online
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="flex items-center gap-1">
-                                <Store className="h-3 w-3" />
-                                Local
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-muted-foreground">
-                            {isOnline ? onlineResult!.address : localResult!.store.address}
-                          </p>
-                          {!isOnline && localResult!.store.phone && (
-                            <p className="text-sm text-muted-foreground">{localResult!.store.phone}</p>
-                          )}
-                        </div>
-                        <div className="text-right space-y-2">
-                          <Badge className={getStoreTypeColor(isOnline ? onlineResult!.store_type : localResult!.store.store_type)}>
-                            {isOnline ? onlineResult!.store_type : localResult!.store.store_type}
-                          </Badge>
-                          {!isOnline && (
-                            <p className="text-sm text-muted-foreground">
-                              {localResult!.distance} km away
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="border-t pt-4 space-y-2">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-medium">{result.product.name}</p>
-                            {!isOnline && 'brand' in localResult!.product && localResult!.product.brand && (
-                              <p className="text-sm text-muted-foreground">
-                                by {localResult!.product.brand}
-                              </p>
-                            )}
-                            {isOnline && onlineResult!.product.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {onlineResult!.product.description}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            {isOnline ? (
-                              <p className="text-lg font-semibold text-primary">
-                                {onlineResult!.product.price}
-                              </p>
-                            ) : localResult!.price && (
-                              <p className="text-lg font-semibold text-primary">
-                                ${localResult!.price}
-                              </p>
-                            )}
-                          </div>
+                      <div className="flex items-start gap-4">
+                        {/* Store Image Placeholder */}
+                        <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Store className="h-8 w-8 text-muted-foreground" />
                         </div>
                         
-                        <div className="flex justify-between items-center text-sm">
-                          <div>
-                            {isOnline && onlineResult!.product.availability ? (
-                              <Badge variant="outline" className="text-blue-600 border-blue-600">
-                                {onlineResult!.product.availability}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-green-600 border-green-600">
-                                ✓ In Stock
-                              </Badge>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="text-xl font-semibold mb-1">
+                                {isOnline ? onlineResult!.name : localResult!.store.name}
+                              </h3>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                Selling {isOnline ? onlineResult!.product.name : localResult!.product.name}
+                              </p>
+                            </div>
+                            <Badge 
+                              variant="outline" 
+                              className={getStoreTypeColor(isOnline ? onlineResult!.store_type : localResult!.store.store_type)}
+                            >
+                              {isOnline ? onlineResult!.store_type : localResult!.store.store_type}
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4" />
+                              <span>{isOnline ? onlineResult!.address : localResult!.store.address}</span>
+                            </div>
+                            {!isOnline && localResult!.distance && (
+                              <div className="flex items-center gap-2">
+                                <span className="ml-6">{localResult!.distance.toFixed(1)} km away</span>
+                              </div>
+                            )}
+                            {!isOnline && localResult!.store.phone && (
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4" />
+                                <span>{localResult!.store.phone}</span>
+                              </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-2">
+                          
+                          <div className="flex items-center gap-3">
                             {isOnline && onlineResult!.url && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => window.open(onlineResult!.url!, '_blank')}
-                                className="flex items-center gap-1"
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                                Visit Store
+                              <Button variant="default" size="sm" asChild>
+                                <a 
+                                  href={onlineResult!.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2"
+                                >
+                                  Visit Website <ExternalLink className="h-4 w-4" />
+                                </a>
                               </Button>
                             )}
-                            {!isOnline && (
-                              <span className="text-muted-foreground">
-                                Updated: {new Date(localResult!.last_updated).toLocaleDateString()}
-                              </span>
+                            {isOnline ? (
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <Globe className="h-3 w-3" />
+                                Online Store
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <Store className="h-3 w-3" />
+                                Local Store
+                              </Badge>
                             )}
                           </div>
                         </div>
