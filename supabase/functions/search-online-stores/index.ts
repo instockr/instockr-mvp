@@ -89,33 +89,26 @@ serve(async (req) => {
         searchResult.data.forEach((result: any, index: number) => {
           console.log(`Processing result ${index}:`, result.title, result.url);
           
-          // Create a result for each found page
-          if (result.title && result.url) {
-            // Determine if this is actually a physical store or online
-            const isPhysicalStore = result.title.toLowerCase().includes('apple store') || 
-                                  result.title.toLowerCase().includes('piazza liberty') ||
-                                  result.url.includes('tripadvisor.com') ||
-                                  result.url.includes('apple.com/newsroom') ||
-                                  (result.markdown && result.markdown.toLowerCase().includes('address'));
-                                  
-            onlineResults.push({
-              id: `search-result-${index}-${Date.now()}`,
-              name: result.title,
-              store_type: 'retail',
-              address: 'Milan, Italy',
-              distance: null,
-              latitude: null,
-              longitude: null,
-              phone: null,
-              product: {
-                name: productName,
-                price: 'Contact store for pricing',
-                description: result.markdown ? result.markdown.substring(0, 200) + '...' : `${productName} available`,
-                availability: 'Contact store for availability'
-              },
-              url: result.url,
-              isOnline: !isPhysicalStore // Mark as physical store if it looks like one
-            });
+            // Create a result for each found page
+            if (result.title && result.url) {
+              onlineResults.push({
+                id: `search-result-${index}-${Date.now()}`,
+                name: result.title,
+                store_type: 'retail',
+                address: 'Milan, Italy',
+                distance: null,
+                latitude: null,
+                longitude: null,
+                phone: null,
+                product: {
+                  name: productName,
+                  price: 'Contact store for pricing',
+                  description: result.markdown ? result.markdown.substring(0, 200) + '...' : `${productName} available`,
+                  availability: 'Contact store for availability'
+                },
+                url: result.url,
+                isOnline: false // Let Google Maps verification determine if it's physical or online
+              });
           }
         });
       } else {

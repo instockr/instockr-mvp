@@ -306,38 +306,59 @@ export function ProductSearch() {
         }
       }
 
-      // Verify physical stores with Google Maps
+      // Verify ALL stores with Google Maps to determine if they're physical or online
       if (allStores.length > 0) {
         console.log('Starting Google Maps verification...');
         try {
           const verifiedStores = await Promise.all(
             allStores.map(async (store: Store | OnlineStore) => {
-              const isOnline = 'isOnline' in store && store.isOnline;
-              
-              // Skip verification for online stores
-              if (isOnline) {
-                return store;
-              }
-              
-              const localStore = store as Store;
+              // Try to verify every store with Google Maps
               try {
+                let storeName, storeAddress, latitude, longitude;
+                
+                if ('store' in store) {
+                  // Local store format
+                  storeName = store.store.name;
+                  storeAddress = store.store.address;
+                  latitude = store.store.latitude;
+                  longitude = store.store.longitude;
+                } else {
+                  // Online store format
+                  storeName = store.name;
+                  storeAddress = store.address;
+                  latitude = store.latitude;
+                  longitude = store.longitude;
+                }
+                
                 const { data: verification } = await supabase.functions.invoke('verify-store-maps', {
                   body: {
-                    storeName: localStore.store.name,
-                    address: localStore.store.address,
-                    latitude: localStore.store.latitude,
-                    longitude: localStore.store.longitude
+                    storeName,
+                    address: storeAddress,
+                    latitude,
+                    longitude
                   }
                 });
                 
-                return {
-                  ...localStore,
-                  verification: verification || { verified: false }
-                };
+                if (verification?.verified) {
+                  // Found on Google Maps - mark as physical store
+                  return {
+                    ...store,
+                    isOnline: false,
+                    verification: verification
+                  };
+                } else {
+                  // Not found on Google Maps - keep as online store
+                  return {
+                    ...store,
+                    isOnline: true,
+                    verification: { verified: false }
+                  };
+                }
               } catch (error) {
                 console.error('Error verifying store:', error);
                 return {
-                  ...localStore,
+                  ...store,
+                  isOnline: true, // Default to online if verification fails
                   verification: { verified: false }
                 };
               }
