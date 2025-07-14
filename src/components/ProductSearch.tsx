@@ -513,14 +513,6 @@ export function ProductSearch() {
                               <p className="text-sm text-muted-foreground mb-2">
                                 Selling {isOnline ? onlineResult!.product.name : localResult!.product.name}
                               </p>
-                              {/* Show consolidation info */}
-                              {'isConsolidated' in result && result.isConsolidated && (
-                                <div className="flex items-center gap-1 mb-2">
-                                  <Badge variant="secondary" className="text-xs">
-                                    📍 Consolidated from {(result as any).sourceCount} sources
-                                  </Badge>
-                                </div>
-                              )}
                             </div>
                             <Badge 
                               variant="outline" 
