@@ -342,26 +342,14 @@ const geocodeLocation = async (locationStr: string) => {
 
       console.log(`Combined ${combinedStores.length} physical stores from all sources`);
 
-      // Step 4: Simple address-based deduplication (no LLM)
-      console.log('Step 4: Simple address-based deduplication');
-      const deduplicationResponse = await supabase.functions.invoke('simple-deduplication', {
-        body: { stores: combinedStores }
-      });
-
-      let finalStores = combinedStores;
-      if (deduplicationResponse.data && deduplicationResponse.data.deduplicatedStores) {
-        finalStores = deduplicationResponse.data.deduplicatedStores;
-        console.log(`Simple deduplication: reduced from ${combinedStores.length} to ${finalStores.length} stores`);
-      }
-
-      // Step 5: Verify ALL stores with Google Maps (required for physical stores)
-      if (finalStores.length > 0) {
-        console.log('Verifying all stores with Google Maps...');
+      // Step 4: Verify ALL stores with Google Maps first (to get accurate addresses)
+      if (combinedStores.length > 0) {
+        console.log('Step 4: Verifying all stores with Google Maps...');
         const verifiedStores = [];
         
         // Process stores in batches to avoid overwhelming the API
-        for (let i = 0; i < finalStores.length; i += 5) {
-          const batch = finalStores.slice(i, i + 5);
+        for (let i = 0; i < combinedStores.length; i += 5) {
+          const batch = combinedStores.slice(i, i + 5);
           try {
             for (const store of batch) {
               const verificationResponse = await supabase.functions.invoke('verify-store-maps', {
@@ -376,58 +364,72 @@ const geocodeLocation = async (locationStr: string) => {
               if (verificationResponse.data?.verified) {
                 let storeWithVerification = {
                   ...store,
-                  verification: verificationResponse.data
+                  verification: verificationResponse.data,
+                  // Update address with Google Maps verified address if available
+                  address: verificationResponse.data.address || (store as any).store?.address || (store as any).address
                 };
                 
-                // Calculate distance if user location and store coordinates are available
-                if (locationCoords && verificationResponse.data.geometry?.location) {
-                  const storeLat = verificationResponse.data.geometry.location.lat;
-                  const storeLng = verificationResponse.data.geometry.location.lng;
+                // Calculate distance if coordinates are available
+                if (locationCoords && verificationResponse.data.latitude && verificationResponse.data.longitude) {
                   const distance = calculateDistance(
-                    locationCoords.lat, 
-                    locationCoords.lng, 
-                    storeLat, 
-                    storeLng
+                    locationCoords.lat,
+                    locationCoords.lng,
+                    verificationResponse.data.latitude,
+                    verificationResponse.data.longitude
                   );
-                  storeWithVerification = { ...storeWithVerification, distance: Math.round(distance * 100) / 100 };
+                  storeWithVerification = { ...storeWithVerification, distance };
                 }
                 
                 verifiedStores.push(storeWithVerification);
               }
             }
           } catch (error) {
-            console.error('Error verifying batch:', error);
+            console.error(`Error verifying batch ${i}:`, error);
           }
+          
+          // Small delay between batches
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
         
-        // Sort verified stores by distance if available
-        finalStores = verifiedStores.sort((a: any, b: any) => {
-          // Sort by distance (nulls last)
-          if (a.distance === null && b.distance === null) return 0;
-          if (a.distance === null) return 1;
-          if (b.distance === null) return -1;
-          return a.distance - b.distance;
+        console.log(`Google Maps verification: ${combinedStores.length} -> ${verifiedStores.length} verified stores`);
+
+        // Step 5: Simple address-based deduplication using verified addresses
+        console.log('Step 5: Simple address-based deduplication using verified addresses');
+        const deduplicationResponse = await supabase.functions.invoke('simple-deduplication', {
+          body: { stores: verifiedStores }
         });
-        
-        console.log(`Google Maps verified ${finalStores.length} stores`);
-        if (finalStores.length > 0 && finalStores[0].distance !== undefined) {
-          console.log('Stores sorted by distance:', finalStores.slice(0, 3).map((s: any) => ({ 
-            name: s.name || s.store?.name, 
-            distance: s.distance 
-          })));
+
+        let finalStores = verifiedStores;
+        if (deduplicationResponse.data && deduplicationResponse.data.deduplicatedStores) {
+          finalStores = deduplicationResponse.data.deduplicatedStores;
+          console.log(`Simple deduplication: reduced from ${verifiedStores.length} to ${finalStores.length} stores`);
         }
+
+        // Set final results
+        setResults({
+          stores: finalStores,
+          searchedProduct: productName,
+          totalResults: finalStores.length
+        });
+
+        toast({
+          title: "Search Complete",
+          description: `Found ${finalStores.length} stores with verified addresses`,
+        });
+      } else {
+        // No stores found
+        setResults({
+          stores: [],
+          searchedProduct: productName,
+          totalResults: 0
+        });
+
+        toast({
+          title: "No Results",
+          description: "No stores found for this product",
+          variant: "default",
+        });
       }
-
-      setResults({
-        stores: finalStores,
-        searchedProduct: productName,
-        totalResults: finalStores.length
-      });
-
-      toast({
-        title: "Search Complete",
-        description: `Found ${finalStores.length} stores across all channels`,
-      });
 
     } catch (error) {
       console.error('Search error:', error);
