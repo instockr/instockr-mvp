@@ -280,7 +280,7 @@ export function ProductSearch() {
         console.error('Online search failed:', onlineResult.reason);
       }
 
-      console.log('Final results before deduplication:', { totalFound, allStores });
+      console.log('Final results before deduplication:', { totalFound, allStores: allStores.filter(s => s != null) });
       
       // Deduplicate stores using AI if we have results
       if (allStores.length > 1) {
@@ -378,10 +378,37 @@ export function ProductSearch() {
         }
       }
 
+      // Final safety check - ensure all stores in the final results are valid
+      const validStores = allStores.filter(store => {
+        if (!store) {
+          console.warn('Filtering out null/undefined store');
+          return false;
+        }
+        
+        // Check if the store has basic required properties
+        if ('store' in store) {
+          // Local store format
+          if (!store.store?.name || !store.product?.name) {
+            console.warn('Filtering out invalid local store:', store);
+            return false;
+          }
+        } else {
+          // Online store format
+          if (!store.name || !store.product?.name) {
+            console.warn('Filtering out invalid online store:', store);
+            return false;
+          }
+        }
+        
+        return true;
+      });
+
+      console.log(`Filtered ${allStores.length} stores down to ${validStores.length} valid stores`);
+
       setResults({
-        stores: allStores,
+        stores: validStores,
         searchedProduct: productName.trim(),
-        totalResults: totalFound
+        totalResults: validStores.length
       });
       
       if (totalFound === 0) {
