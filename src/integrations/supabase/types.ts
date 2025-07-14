@@ -14,7 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      inventory: {
+        Row: {
+          id: string
+          in_stock: boolean
+          last_updated: string
+          price: number | null
+          product_id: string
+          store_id: string
+        }
+        Insert: {
+          id?: string
+          in_stock?: boolean
+          last_updated?: string
+          price?: number | null
+          product_id: string
+          store_id: string
+        }
+        Update: {
+          id?: string
+          in_stock?: boolean
+          last_updated?: string
+          price?: number | null
+          product_id?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          barcode: string | null
+          brand: string | null
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          barcode?: string | null
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string | null
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stores: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          phone: string | null
+          store_type: Database["public"]["Enums"]["store_type"]
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          name: string
+          phone?: string | null
+          store_type?: Database["public"]["Enums"]["store_type"]
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          name?: string
+          phone?: string | null
+          store_type?: Database["public"]["Enums"]["store_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +133,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      store_type:
+        | "grocery"
+        | "pharmacy"
+        | "electronics"
+        | "department"
+        | "specialty"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +266,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      store_type: [
+        "grocery",
+        "pharmacy",
+        "electronics",
+        "department",
+        "specialty",
+        "other",
+      ],
+    },
   },
 } as const
