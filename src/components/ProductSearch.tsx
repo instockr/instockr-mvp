@@ -626,9 +626,9 @@ const geocodeLocation = async (locationStr: string) => {
                 return (
                   <Card key={index} className="hover:shadow-lg transition-shadow">
                      <CardContent className="pt-6">
-                         <div className="flex gap-4 items-stretch">
+                         <div className="flex gap-4">
                            {/* LEFT SIDE: Image (square, height matches content) */}
-                           <div className="bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ width: 'auto', aspectRatio: '1/1', height: '100%' }}>
+                           <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                               {(result as any).verification?.photoUrl ? (
                                 <img 
                                   src={(result as any).verification.photoUrl} 
