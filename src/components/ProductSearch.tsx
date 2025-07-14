@@ -206,16 +206,11 @@ export function ProductSearch() {
       </div>
 
       {/* Search Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Product Search
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Card className="shadow-lg border-0 bg-gradient-to-b from-card to-card/50">
+        <CardContent className="pt-6 space-y-4">
           <div className="space-y-2">
-            <label htmlFor="product" className="text-sm font-medium">
+            <label htmlFor="product" className="text-sm font-medium flex items-center gap-2">
+              <Search className="h-4 w-4" />
               Product Name
             </label>
             <Input
@@ -228,7 +223,8 @@ export function ProductSearch() {
           </div>
           
           <div className="space-y-2">
-            <label htmlFor="location" className="text-sm font-medium">
+            <label htmlFor="location" className="text-sm font-medium flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
               Your Location
             </label>
             <div className="flex gap-2">
