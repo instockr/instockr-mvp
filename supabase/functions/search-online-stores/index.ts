@@ -43,80 +43,139 @@ serve(async (req) => {
 
     console.log('Searching online stores for:', productName);
 
+    // Define multiple search sources with specific queries
+    const searchSources = [
+      {
+        name: 'General Web Search',
+        query: `${productName} store Milan Italy buy purchase`,
+        limit: 3
+      },
+      {
+        name: 'E-commerce Sites',
+        query: `${productName} site:amazon.it OR site:ebay.it OR site:mediaworld.it OR site:unieuro.it`,
+        limit: 4
+      },
+      {
+        name: 'Price Comparison',
+        query: `${productName} prezzo migliore confronto prezzi site:idealo.it OR site:trovaprezzi.it`,
+        limit: 3
+      },
+      {
+        name: 'Electronics Retailers',
+        query: `${productName} elettronica negozio online Italia vendita`,
+        limit: 3
+      },
+      {
+        name: 'Mobile Carriers',
+        query: `${productName} TIM Vodafone WindTre Iliad negozio cellulare`,
+        limit: 2
+      }
+    ];
+
     const onlineResults = [];
 
-    try {
-      console.log('Starting FireCrawl search...');
-      
-      // Use direct API call instead of SDK for better debugging
-      const searchQuery = `${productName} store Milan Italy buy purchase`;
-      console.log('Search query:', searchQuery);
-      
-      const requestBody = {
-        query: searchQuery,
-        limit: 5,
-        scrapeOptions: {
-          formats: ['markdown']
-        }
-      };
-      
-      console.log('Request body:', JSON.stringify(requestBody, null, 2));
-      
-      const response = await fetch('https://api.firecrawl.dev/v1/search', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${firecrawlApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      console.log('FireCrawl API response status:', response.status);
-      console.log('FireCrawl API response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('FireCrawl API error:', errorText);
-        throw new Error(`FireCrawl API error: ${response.status} - ${errorText}`);
-      }
-
-      const searchResult = await response.json();
-      console.log('FireCrawl search result:', JSON.stringify(searchResult, null, 2));
-
-      if (searchResult.success && searchResult.data && Array.isArray(searchResult.data)) {
-        console.log(`Processing ${searchResult.data.length} search results`);
+    // Execute all searches in parallel
+    const searchPromises = searchSources.map(async (source, sourceIndex) => {
+      try {
+        console.log(`Starting ${source.name} search...`);
         
-        searchResult.data.forEach((result: any, index: number) => {
-          console.log(`Processing result ${index}:`, result.title, result.url);
-          
-            // Create a result for each found page
+        const requestBody = {
+          query: source.query,
+          limit: source.limit,
+          scrapeOptions: {
+            formats: ['markdown']
+          }
+        };
+        
+        console.log(`${source.name} query:`, source.query);
+        
+        const response = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`${source.name} API error:`, errorText);
+          return [];
+        }
+
+        const searchResult = await response.json();
+        console.log(`${source.name} search result:`, searchResult.data?.length || 0, 'results');
+
+        const sourceResults = [];
+        
+        if (searchResult.success && searchResult.data && Array.isArray(searchResult.data)) {
+          searchResult.data.forEach((result: any, index: number) => {
             if (result.title && result.url) {
-              onlineResults.push({
-                id: `search-result-${index}-${Date.now()}`,
+              // Determine store type based on URL
+              let storeType = 'retail';
+              const url = result.url.toLowerCase();
+              if (url.includes('amazon') || url.includes('ebay') || url.includes('marketplace')) {
+                storeType = 'marketplace';
+              } else if (url.includes('mediaworld') || url.includes('unieuro') || url.includes('electronics')) {
+                storeType = 'electronics';
+              } else if (url.includes('tim.it') || url.includes('vodafone') || url.includes('windtre') || url.includes('iliad')) {
+                storeType = 'mobile_carrier';
+              }
+
+              // Extract potential price from markdown
+              let price = 'Contact store for pricing';
+              if (result.markdown) {
+                const priceRegex = /€[\d.,]+|[\d.,]+\s*€|\$[\d.,]+/g;
+                const priceMatch = result.markdown.match(priceRegex);
+                if (priceMatch && priceMatch.length > 0) {
+                  price = priceMatch[0];
+                }
+              }
+
+              sourceResults.push({
+                id: `${source.name.toLowerCase().replace(/\s+/g, '-')}-${sourceIndex}-${index}-${Date.now()}`,
                 name: result.title,
-                store_type: 'retail',
-                address: 'Milan, Italy',
+                store_type: storeType,
+                address: 'Online / Italy',
                 distance: null,
                 latitude: null,
                 longitude: null,
                 phone: null,
                 product: {
                   name: productName,
-                  price: 'Contact store for pricing',
-                  description: result.markdown ? result.markdown.substring(0, 200) + '...' : `${productName} available`,
-                  availability: 'Contact store for availability'
+                  price: price,
+                  description: result.markdown ? result.markdown.substring(0, 300) + '...' : `${productName} available`,
+                  availability: 'Check website for availability'
                 },
                 url: result.url,
-                isOnline: false // Let Google Maps verification determine if it's physical or online
+                isOnline: true,
+                source: source.name
               });
-          }
-        });
-      } else {
-        console.error('Unexpected FireCrawl response structure:', searchResult);
+            }
+          });
+        }
+        
+        return sourceResults;
+      } catch (error) {
+        console.error(`Error during ${source.name} search:`, error);
+        return [];
       }
+    });
+
+    // Wait for all searches to complete
+    try {
+      console.log('Executing parallel searches...');
+      const searchResults = await Promise.all(searchPromises);
+      
+      // Flatten and combine all results
+      searchResults.forEach(results => {
+        onlineResults.push(...results);
+      });
+      
+      console.log(`Found ${onlineResults.length} total results from all sources`);
     } catch (error) {
-      console.error('Error during Firecrawl search:', error);
-      console.error('Error details:', error.message, error.stack);
+      console.error('Error during parallel searches:', error);
     }
 
     console.log(`Found ${onlineResults.length} online results`);
