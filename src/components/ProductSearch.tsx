@@ -657,7 +657,7 @@ export function ProductSearch() {
                           </div>
                         
                          <div className="flex-1">
-                           <div className="flex justify-between items-start mb-3">
+                           <div className="flex justify-between items-start mb-1">
                              <div className="flex items-center gap-2">
                                <h3 className="text-xl font-semibold">
                                  {isOnline ? onlineResult?.name || 'Unknown Store' : (localResult?.store?.name || (result as any).name || 'Unknown Store')}
@@ -682,34 +682,36 @@ export function ProductSearch() {
                                >
                                  {isOnline ? onlineResult?.store_type || 'other' : (localResult?.store?.store_type || (result as any).store_type || 'other')}
                                </Badge>
-                               {/* Website button positioned under the retail badge */}
-                               {isOnline && onlineResult?.url && (
-                                 <Button variant="default" size="sm" asChild>
-                                   <a 
-                                     href={onlineResult.url} 
-                                     target="_blank" 
-                                     rel="noopener noreferrer"
-                                     className="flex items-center gap-2"
-                                   >
-                                     Visit Website <ExternalLink className="h-4 w-4" />
-                                   </a>
-                                 </Button>
-                               )}
-                               {!isOnline && (result as any).verification?.website && (
-                                 <Button variant="default" size="sm" asChild>
-                                   <a 
-                                     href={(result as any).verification.website} 
-                                     target="_blank" 
-                                     rel="noopener noreferrer"
-                                     className="flex items-center gap-2"
-                                   >
-                                     Visit Website <ExternalLink className="h-4 w-4" />
-                                   </a>
-                                 </Button>
-                               )}
+                               {/* Website button positioned under the retail badge with some spacing */}
+                               <div className="mt-3">
+                                 {isOnline && onlineResult?.url && (
+                                   <Button variant="default" size="sm" asChild>
+                                     <a 
+                                       href={onlineResult.url} 
+                                       target="_blank" 
+                                       rel="noopener noreferrer"
+                                       className="flex items-center gap-2"
+                                     >
+                                       Visit Website <ExternalLink className="h-4 w-4" />
+                                     </a>
+                                   </Button>
+                                 )}
+                                 {!isOnline && (result as any).verification?.website && (
+                                   <Button variant="default" size="sm" asChild>
+                                     <a 
+                                       href={(result as any).verification.website} 
+                                       target="_blank" 
+                                       rel="noopener noreferrer"
+                                       className="flex items-center gap-2"
+                                     >
+                                       Visit Website <ExternalLink className="h-4 w-4" />
+                                     </a>
+                                   </Button>
+                                 )}
+                               </div>
                              </div>
                            </div>
-                           <p className="text-sm text-muted-foreground mb-2">
+                           <p className="text-sm text-muted-foreground mb-1">
                              Selling {isOnline ? onlineResult?.product?.name || 'Unknown Product' : (localResult?.product?.name || (result as any).product?.name || 'Unknown Product')}
                            </p>
                            
