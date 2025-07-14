@@ -157,25 +157,46 @@ export function ProductSearch() {
       };
     }
     
-    // Use a free geocoding service to convert city name to coordinates
+    // First try to use a simple city-to-coordinates mapping for popular cities
+    const cityCoordinates: Record<string, { lat: number; lng: number }> = {
+      "milan, italy": { lat: 45.4642, lng: 9.1900 },
+      "paris, france": { lat: 48.8566, lng: 2.3522 },
+      "london, uk": { lat: 51.5074, lng: -0.1278 },
+      "new york, ny": { lat: 40.7128, lng: -74.0060 },
+      "los angeles, ca": { lat: 34.0522, lng: -118.2437 },
+      "chicago, il": { lat: 41.8781, lng: -87.6298 },
+      "berlin, germany": { lat: 52.5200, lng: 13.4050 },
+      "madrid, spain": { lat: 40.4168, lng: -3.7038 },
+      "rome, italy": { lat: 41.9028, lng: 12.4964 },
+      "amsterdam, netherlands": { lat: 52.3676, lng: 4.9041 },
+      "barcelona, spain": { lat: 41.3851, lng: 2.1734 },
+      "vienna, austria": { lat: 48.2082, lng: 16.3738 },
+      "frankfurt am main, germany": { lat: 50.1109, lng: 8.6821 }
+    };
+    
+    const normalizedLocation = locationStr.toLowerCase();
+    if (cityCoordinates[normalizedLocation]) {
+      return cityCoordinates[normalizedLocation];
+    }
+    
+    // Try free geocoding service as fallback
     try {
       const response = await fetch(
-        `https://api.bigdatacloud.net/data/forward-geocode-client?query=${encodeURIComponent(locationStr)}&localityLanguage=en`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationStr)}&limit=1`
       );
       const data = await response.json();
       
-      if (data.results && data.results.length > 0) {
-        const result = data.results[0];
+      if (data && data.length > 0) {
         return {
-          lat: result.latitude,
-          lng: result.longitude
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon)
         };
       }
     } catch (error) {
       console.error('Geocoding error:', error);
     }
     
-    throw new Error(`Location "${locationStr}" not found`);
+    throw new Error(`Location "${locationStr}" not found. Please try a major city name.`);
   };
 
   const handleSearch = async () => {
