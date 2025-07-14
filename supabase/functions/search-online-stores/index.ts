@@ -43,83 +43,102 @@ serve(async (req) => {
     // Physical store chains to search for location data
     const storeChains = [
       { name: 'IKEA', searchUrl: 'https://www.ikea.com/us/en/search/products/?q=' },
-      { name: 'Target', searchUrl: 'https://www.target.com/s?searchTerm=' },
-      { name: 'Walmart', searchUrl: 'https://www.walmart.com/search?q=' },
-      { name: 'Best Buy', searchUrl: 'https://www.bestbuy.com/site/searchpage.jsp?st=' },
-      { name: 'Home Depot', searchUrl: 'https://www.homedepot.com/s/' }
+      { name: 'Target', searchUrl: 'https://www.target.com/s?searchTerm=' }
     ];
 
     const onlineResults = [];
 
-    for (const store of storeChains) {
-      try {
-        const searchUrl = `${store.searchUrl}${encodeURIComponent(productName)}`;
-        
-        // Use Firecrawl to scrape the store's product page
-        const crawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url: searchUrl,
-            formats: ['extract'],
-            extract: {
-              schema: {
-                products: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string" },
-                      price: { type: "string" },
-                      availability: { type: "string" },
-                      store_locations: { type: "string" },
-                      in_stock: { type: "boolean" }
-                    }
-                  }
-                }
-              }
-            },
-            onlyMainContent: true
-          }),
-        });
+    // Create a timeout promise that resolves after 10 seconds
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Search timeout')), 10000);
+    });
 
-        console.log(`Crawling ${store.name} - Status: ${crawlResponse.status}`);
-
-        if (crawlResponse.ok) {
-          const crawlData = await crawlResponse.json();
-          
-          if (crawlData.success && crawlData.extract?.products) {
-            crawlData.extract.products.slice(0, 2).forEach((product: any, index: number) => {
-              onlineResults.push({
-                id: `online-${store.name.toLowerCase()}-${Date.now()}-${index}`,
-                name: store.name,
-                store_type: 'department',
-                address: `${store.name} - Check store locator`,
-                distance: null,
-                latitude: null,
-                longitude: null,
-                phone: null,
-                product: {
-                  name: product.name || productName,
-                  price: product.price || 'Price varies by location',
-                  description: `Available at ${store.name} locations`,
-                  availability: product.availability || (product.in_stock ? 'In Stock' : 'Check local stores')
+    try {
+      // Use Promise.race to ensure we don't wait too long
+      await Promise.race([
+        (async () => {
+          for (const store of storeChains) {
+            try {
+              const searchUrl = `${store.searchUrl}${encodeURIComponent(productName)}`;
+              
+              // Use Firecrawl to scrape the store's product page with timeout
+              const crawlPromise = fetch('https://api.firecrawl.dev/v1/scrape', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${firecrawlApiKey}`,
+                  'Content-Type': 'application/json',
                 },
-                url: searchUrl,
-                isOnline: true
+                body: JSON.stringify({
+                  url: searchUrl,
+                  formats: ['extract'],
+                  extract: {
+                    schema: {
+                      products: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            price: { type: "string" },
+                            availability: { type: "string" },
+                            store_locations: { type: "string" },
+                            in_stock: { type: "boolean" }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  onlyMainContent: true
+                }),
               });
-            });
+
+              // Add 5 second timeout per request
+              const storeTimeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error(`${store.name} timeout`)), 5000);
+              });
+
+              const crawlResponse = await Promise.race([crawlPromise, storeTimeoutPromise]);
+              console.log(`Crawling ${store.name} - Status: ${crawlResponse.status}`);
+
+              if (crawlResponse.ok) {
+                const crawlData = await crawlResponse.json();
+                
+                if (crawlData.success && crawlData.extract?.products) {
+                  crawlData.extract.products.slice(0, 1).forEach((product: any, index: number) => {
+                    onlineResults.push({
+                      id: `online-${store.name.toLowerCase()}-${Date.now()}-${index}`,
+                      name: store.name,
+                      store_type: 'department',
+                      address: `${store.name} - Check store locator`,
+                      distance: null,
+                      latitude: null,
+                      longitude: null,
+                      phone: null,
+                      product: {
+                        name: product.name || productName,
+                        price: product.price || 'Price varies by location',
+                        description: `Available at ${store.name} locations`,
+                        availability: product.availability || (product.in_stock ? 'In Stock' : 'Check local stores')
+                      },
+                      url: searchUrl,
+                      isOnline: true
+                    });
+                  });
+                }
+              } else {
+                console.error(`Failed to crawl ${store.name}: ${crawlResponse.status}`);
+              }
+            } catch (error) {
+              console.error(`Error crawling ${store.name}:`, error);
+              // Continue with other stores even if one fails
+            }
           }
-        } else {
-          console.error(`Failed to crawl ${store.name}: ${crawlResponse.status}`);
-        }
-      } catch (error) {
-        console.error(`Error crawling ${store.name}:`, error);
-        // Continue with other stores even if one fails
-      }
+        })(),
+        timeoutPromise
+      ]);
+    } catch (error) {
+      console.log('Search completed with timeout or error:', error);
+      // Continue anyway with whatever results we have
     }
 
     console.log(`Found ${onlineResults.length} online results`);
