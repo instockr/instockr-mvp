@@ -251,37 +251,34 @@ export function ProductSearch() {
         });
         searchPromises.push(fallbackPromise.then(result => ({ source: 'local_db_fallback', strategy: 'fallback', result })));
       } else {
-        const { strategies } = strategiesResponse.data;
-        console.log('Generated strategies:', strategies.length);
-        console.log('Strategy details:', strategies);
+        const { searchTerms } = strategiesResponse.data;
+        console.log('Generated search terms:', searchTerms);
 
-        // Execute searches for each strategy
-        for (const strategy of strategies) {
-          console.log(`Processing strategy: ${strategy.name} with channels:`, strategy.channels);
-          
-          if (strategy.channels.includes('google_maps')) {
-            console.log(`Adding Google Maps search for strategy: ${strategy.name}`);
-            const searchPromise = supabase.functions.invoke('search-stores', {
-              body: {
-                productName: strategy.query,
-                userLat: locationCoords?.lat || 45.4642,
-                userLng: locationCoords?.lng || 9.19,
-                radius: 50
-              }
-            });
-            searchPromises.push(searchPromise.then(result => ({ source: 'google_maps', strategy: strategy.name, result })));
-          }
-          
-          if (strategy.channels.includes('firecrawl')) {
-            console.log(`Adding Firecrawl search for strategy: ${strategy.name}`);
-            const firecrawlPromise = supabase.functions.invoke('search-online-stores', {
-              body: { 
-                productName: productName.trim(),
-                strategies: [strategy]
-              }
-            });
-            searchPromises.push(firecrawlPromise.then(result => ({ source: 'firecrawl', strategy: strategy.name, result })));
-          }
+        // Create promises for each search term and channel
+        for (const searchTerm of searchTerms) {
+          // Google Maps search for physical stores
+          const searchPromise = supabase.functions.invoke('search-stores', {
+            body: {
+              productName: searchTerm,
+              userLat: locationCoords?.lat || 45.4642,
+              userLng: locationCoords?.lng || 9.19,
+              radius: 50
+            }
+          });
+          searchPromises.push(searchPromise.then(result => ({ source: 'google_maps', strategy: searchTerm, result })));
+        }
+
+        // Also search online stores but filter for physical ones only
+        for (const searchTerm of searchTerms) {
+          const firecrawlPromise = supabase.functions.invoke('search-online-stores', {
+            body: {
+              productName: searchTerm,
+              location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
+              searchRadius: '50km',
+              physicalOnly: true // Add flag to search for physical stores only
+            }
+          });
+          searchPromises.push(firecrawlPromise.then(result => ({ source: 'firecrawl', strategy: searchTerm, result })));
         }
         
         console.log(`Total search promises created: ${searchPromises.length}`);

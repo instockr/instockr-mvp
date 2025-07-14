@@ -16,20 +16,36 @@ serve(async (req) => {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
     if (!openAIApiKey) {
-      console.log('OpenAI API key not configured, using fallback strategies');
-      // Fallback to basic strategies when OpenAI is not available
-      const fallbackStrategies = generateFallbackStrategies(productName);
-      return new Response(
-        JSON.stringify({
-          strategies: fallbackStrategies,
-          productName: productName,
-          fallback: true
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log('OpenAI API key not found, using fallback search terms');
+      return new Response(JSON.stringify(generateFallbackSearchTerms(productName)), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Generating search strategies for:', productName);
+    console.log('Generating search terms for:', productName);
+
+    const prompt = `
+    You are an expert at finding physical stores in Italy that sell specific products.
+    Given a product name, generate a list of search terms that will help find physical stores selling this product.
+    
+    Product: ${productName}
+    
+    Return a JSON object with this structure:
+    {
+      "searchTerms": ["term1", "term2", "term3", ...]
+    }
+    
+    Generate 3-5 search terms that represent:
+    1. Different store types (e.g., "ferramenta" for tools, "farmacia" for medicine)
+    2. Product categories (e.g., "elettronica" for electronics)
+    3. Specific Italian store chains that might sell this product
+    
+    Keep terms simple and focused on physical store types in Italy.
+    Examples:
+    - For "cacciavite": ["ferramenta", "bricolage", "fai da te", "elettronica"]
+    - For "aspirina": ["farmacia", "parafarmacia"]
+    - For "smartphone": ["elettronica", "telefonia", "negozi di cellulari"]
+  `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -42,143 +58,90 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a search strategy expert for finding PHYSICAL STORES in Italy. Given a product, generate multiple targeted search strategies to find physical retail locations that sell this product.
-
-Return a JSON object with this structure:
-{
-  "strategies": [
-    {
-      "name": "Strategy Name",
-      "query": "search query in Italian/English for physical stores",
-      "channels": ["google_maps", "firecrawl"],
-      "storeTypes": ["specific physical store types"],
-      "priority": 1-5
-    }
-  ]
-}
-
-Focus ONLY on physical stores:
-- Italian retail chains and local stores
-- Specialized physical retailers
-- Department stores, supermarkets, pharmacies
-- Electronics stores, hardware stores, etc.
-- Use terms like "negozio", "punto vendita", "store", "shop"
-- Include specific Italian retail chain names
-- Geographic terms for Italian cities/regions
-
-Channels available:
-- google_maps: Google Maps Places API (primary for physical stores)
-- firecrawl: Web scraping for store finder pages
-
-Generate 6-8 diverse strategies covering different types of physical retailers.`
+            content: 'You are a search term generator for finding physical stores in Italy. Return only valid JSON.'
           },
           {
             role: 'user',
-            content: `Product: ${productName}`
+            content: prompt
           }
         ],
         temperature: 0.3,
-        max_tokens: 2000,
+        max_tokens: 500,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate search strategies' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify(generateFallbackSearchTerms(productName)), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const data = await response.json();
-    const strategies = JSON.parse(data.choices[0].message.content);
+    console.log('OpenAI response:', data);
     
-    console.log('Generated strategies:', strategies.strategies?.length || 0);
-
-    return new Response(
-      JSON.stringify({
-        strategies: strategies.strategies || [],
-        productName: productName
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    let parsedContent;
+    try {
+      parsedContent = JSON.parse(data.choices[0].message.content);
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response:', parseError);
+      parsedContent = generateFallbackSearchTerms(productName);
+    }
+    
+    return new Response(JSON.stringify(parsedContent), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
     console.error('Error in generate-search-strategies function:', error);
-    
-    // Fallback to basic strategies if OpenAI fails
-    console.log('OpenAI failed, using fallback strategies');
-    const fallbackStrategies = generateFallbackStrategies(productName);
-    return new Response(
-      JSON.stringify({
-        strategies: fallbackStrategies,
-        productName: productName,
-        fallback: true
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify(generateFallbackSearchTerms(productName)), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
-// Fallback strategy generator when OpenAI is not available
-function generateFallbackStrategies(productName: string) {
-  const productLower = productName.toLowerCase();
+function generateFallbackSearchTerms(productName: string): any {
+  console.log('Generating fallback search terms for:', productName);
   
-  const strategies = [
-    {
-      name: "General Physical Stores",
-      query: `${productName} negozio fisico Italia punto vendita`,
-      channels: ["google_maps"],
-      storeTypes: ["generale"],
-      priority: 5
-    },
-    {
-      name: "Major Retail Chains",
-      query: `${productName} MediaWorld Unieuro Trony Euronics negozio`,
-      channels: ["google_maps"],
-      storeTypes: ["catena"],
-      priority: 5
-    },
-    {
-      name: "Local Stores",
-      query: `${productName} negozio locale vendita`,
-      channels: ["google_maps"],
-      storeTypes: ["locale"],
-      priority: 4
-    }
-  ];
+  const baseTerms = [productName, "negozi"];
+  const productSpecificTerms: string[] = [];
+  const lowerProductName = productName.toLowerCase();
 
-  // Add product-specific strategies
-  if (productLower.includes('materasso') || productLower.includes('mattress') || productLower.includes('letto')) {
-    strategies.push({
-      name: "Furniture Stores",
-      query: `${productName} materassi negozio arredamento ikea mondo convenienza`,
-      channels: ["google_maps"],
-      storeTypes: ["arredamento"],
-      priority: 5
-    });
-  }
-  
-  if (productLower.includes('iphone') || productLower.includes('smartphone') || productLower.includes('telefono')) {
-    strategies.push({
-      name: "Mobile Stores", 
-      query: `${productName} negozio telefonia TIM Vodafone WindTre`,
-      channels: ["google_maps"],
-      storeTypes: ["telefonia"],
-      priority: 5
-    });
+  if (lowerProductName.includes('phone') || lowerProductName.includes('smartphone') || lowerProductName.includes('cellulare')) {
+    productSpecificTerms.push("telefonia", "negozi di cellulari", "elettronica");
   }
 
-  if (productLower.includes('cacciavite') || productLower.includes('martello') || productLower.includes('utensili')) {
-    strategies.push({
-      name: "Hardware Stores",
-      query: `${productName} ferramenta negozio bricolage leroy merlin`,
-      channels: ["google_maps"],
-      storeTypes: ["ferramenta"],
-      priority: 5
-    });
+  if (lowerProductName.includes('computer') || lowerProductName.includes('laptop') || lowerProductName.includes('pc')) {
+    productSpecificTerms.push("computer", "informatica", "elettronica");
   }
 
-  return strategies;
+  if (lowerProductName.includes('book') || lowerProductName.includes('libro')) {
+    productSpecificTerms.push("librerie", "libri");
+  }
+
+  if (lowerProductName.includes('medicine') || lowerProductName.includes('farmaco') || lowerProductName.includes('aspirina')) {
+    productSpecificTerms.push("farmacia", "parafarmacia");
+  }
+
+  if (lowerProductName.includes('tool') || lowerProductName.includes('cacciavite') || lowerProductName.includes('martello')) {
+    productSpecificTerms.push("ferramenta", "bricolage", "fai da te");
+  }
+
+  if (lowerProductName.includes('food') || lowerProductName.includes('cibo')) {
+    productSpecificTerms.push("supermercato", "alimentari");
+  }
+
+  if (lowerProductName.includes('materasso') || lowerProductName.includes('mattress')) {
+    productSpecificTerms.push("arredamento", "materassi", "mobili");
+  }
+
+  // Add general electronics term if no specific category found
+  if (productSpecificTerms.length === 0) {
+    productSpecificTerms.push("elettronica", "negozi specializzati");
+  }
+
+  return {
+    searchTerms: [...baseTerms, ...productSpecificTerms]
+  };
 }
