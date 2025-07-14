@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, MapPin, Loader2, Globe, Store, ExternalLink, ChevronDown, Phone } from "lucide-react";
+import { Search, MapPin, Loader2, Globe, Store, ExternalLink, ChevronDown, Phone, Clock, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -306,6 +306,50 @@ export function ProductSearch() {
         }
       }
 
+      // Verify physical stores with Google Maps
+      if (allStores.length > 0) {
+        console.log('Starting Google Maps verification...');
+        try {
+          const verifiedStores = await Promise.all(
+            allStores.map(async (store: Store | OnlineStore) => {
+              const isOnline = 'isOnline' in store && store.isOnline;
+              
+              // Skip verification for online stores
+              if (isOnline) {
+                return store;
+              }
+              
+              const localStore = store as Store;
+              try {
+                const { data: verification } = await supabase.functions.invoke('verify-store-maps', {
+                  body: {
+                    storeName: localStore.store.name,
+                    address: localStore.store.address,
+                    latitude: localStore.store.latitude,
+                    longitude: localStore.store.longitude
+                  }
+                });
+                
+                return {
+                  ...localStore,
+                  verification: verification || { verified: false }
+                };
+              } catch (error) {
+                console.error('Error verifying store:', error);
+                return {
+                  ...localStore,
+                  verification: { verified: false }
+                };
+              }
+            })
+          );
+          
+          allStores = verifiedStores;
+        } catch (verificationError) {
+          console.error('Store verification failed, using original results:', verificationError);
+        }
+      }
+
       setResults({
         stores: allStores,
         searchedProduct: productName.trim(),
@@ -522,23 +566,47 @@ export function ProductSearch() {
                             </Badge>
                           </div>
                           
-                          <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4" />
-                              <span>{isOnline ? onlineResult!.address : localResult!.store.address}</span>
-                            </div>
-                            {!isOnline && localResult!.distance && (
-                              <div className="flex items-center gap-2">
-                                <span className="ml-6">{localResult!.distance.toFixed(1)} km away</span>
-                              </div>
-                            )}
-                            {!isOnline && localResult!.store.phone && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-4 w-4" />
-                                <span>{localResult!.store.phone}</span>
-                              </div>
-                            )}
-                          </div>
+                           <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                             <div className="flex items-center gap-2">
+                               <MapPin className="h-4 w-4" />
+                               <span>{isOnline ? onlineResult!.address : localResult!.store.address}</span>
+                             </div>
+                             {!isOnline && localResult!.distance && (
+                               <div className="flex items-center gap-2">
+                                 <span className="ml-6">{localResult!.distance.toFixed(1)} km away</span>
+                               </div>
+                             )}
+                             {!isOnline && localResult!.store.phone && (
+                               <div className="flex items-center gap-2">
+                                 <Phone className="h-4 w-4" />
+                                 <span>{localResult!.store.phone}</span>
+                               </div>
+                             )}
+                             {!isOnline && (localResult as any).verification && (
+                               <div className="flex items-center gap-2">
+                                 {(localResult as any).verification.verified ? (
+                                   <>
+                                     <CheckCircle className="h-4 w-4 text-green-600" />
+                                     <span className="text-green-600">Verified on Google Maps</span>
+                                     {typeof (localResult as any).verification.isOpen === 'boolean' && (
+                                       <Badge 
+                                         variant="outline" 
+                                         className={`ml-2 ${(localResult as any).verification.isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
+                                       >
+                                         <Clock className="h-3 w-3 mr-1" />
+                                         {(localResult as any).verification.isOpen ? 'Open Now' : 'Closed Now'}
+                                       </Badge>
+                                     )}
+                                   </>
+                                 ) : (
+                                   <>
+                                     <XCircle className="h-4 w-4 text-orange-600" />
+                                     <span className="text-orange-600">Not verified on Google Maps</span>
+                                   </>
+                                 )}
+                               </div>
+                             )}
+                           </div>
                           
                           <div className="flex items-center gap-3">
                             {isOnline && onlineResult!.url && (
