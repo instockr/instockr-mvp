@@ -657,7 +657,7 @@ export function ProductSearch() {
                           </div>
                         
                          <div className="flex-1">
-                           <div className="flex justify-between items-start mb-1">
+                           <div className="flex justify-between items-start">
                              <div className="flex items-center gap-2">
                                <h3 className="text-xl font-semibold">
                                  {isOnline ? onlineResult?.name || 'Unknown Store' : (localResult?.store?.name || (result as any).name || 'Unknown Store')}
@@ -711,7 +711,7 @@ export function ProductSearch() {
                                </div>
                              </div>
                            </div>
-                           <p className="text-sm text-muted-foreground mb-1">
+                           <p className="text-sm text-muted-foreground">
                              Selling {isOnline ? onlineResult?.product?.name || 'Unknown Product' : (localResult?.product?.name || (result as any).product?.name || 'Unknown Product')}
                            </p>
                            
