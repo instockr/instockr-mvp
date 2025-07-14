@@ -612,38 +612,49 @@ export function ProductSearch() {
                     console.error('Invalid online store data:', onlineResult);
                     return null;
                   }
-                } else {
-                  if (!localResult || !localResult.store || !localResult.store.name || !localResult.product) {
-                    console.error('Invalid local store data:', localResult);
-                    return null;
-                  }
-                }
+                 } else {
+                   // This could be either a proper local store OR an online store structure marked as physical
+                   const hasLocalStructure = localResult && 'store' in localResult && localResult.store?.name;
+                   const hasOnlineStructure = result && 'name' in result && result.name;
+                   
+                   if (!hasLocalStructure && !hasOnlineStructure) {
+                     console.error('Invalid store data - neither local nor online structure:', result);
+                     return null;
+                   }
+                   
+                   if (!result.product?.name) {
+                     console.error('Invalid store data - missing product name:', result);
+                     return null;
+                   }
+                 }
+                
+                console.log('Store passed validation, rendering card...');
                 
                 return (
                   <Card key={index} className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6">
-                       <div className="flex items-start gap-4">
-                         {/* Store Image */}
-                         <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            {!isOnline && (localResult as any).verification?.photoUrl ? (
-                              <img 
-                                src={(localResult as any).verification.photoUrl} 
-                                alt={`${localResult!.store.name} storefront`}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.currentTarget as HTMLImageElement;
-                                  const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
-                                  if (fallback) {
-                                    target.style.display = 'none';
-                                    fallback.style.display = 'flex';
-                                  }
-                                }}
-                              />
-                            ) : null}
-                            <div className={`w-full h-full items-center justify-center fallback-icon ${!isOnline && (localResult as any).verification?.photoUrl ? 'hidden' : 'flex'}`}>
-                              <Store className="h-8 w-8 text-muted-foreground" />
-                            </div>
-                         </div>
+                        <div className="flex items-start gap-4">
+                          {/* Store Image */}
+                          <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                             {(result as any).verification?.photoUrl ? (
+                               <img 
+                                 src={(result as any).verification.photoUrl} 
+                                 alt={`${isOnline ? onlineResult?.name : (localResult?.store?.name || (result as OnlineStore).name)} storefront`}
+                                 className="w-full h-full object-cover"
+                                 onError={(e) => {
+                                   const target = e.currentTarget as HTMLImageElement;
+                                   const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+                                   if (fallback) {
+                                     target.style.display = 'none';
+                                     fallback.style.display = 'flex';
+                                   }
+                                 }}
+                               />
+                             ) : null}
+                             <div className={`w-full h-full items-center justify-center fallback-icon ${(result as any).verification?.photoUrl ? 'hidden' : 'flex'}`}>
+                               <Store className="h-8 w-8 text-muted-foreground" />
+                             </div>
+                          </div>
                         
                         <div className="flex-1">
                           <div className="flex justify-between items-start mb-3">
