@@ -280,7 +280,32 @@ export function ProductSearch() {
         console.error('Online search failed:', onlineResult.reason);
       }
 
-      console.log('Final results:', { totalFound, allStores });
+      console.log('Final results before deduplication:', { totalFound, allStores });
+      
+      // Deduplicate stores using AI if we have results
+      if (allStores.length > 1) {
+        console.log('Starting deduplication process...');
+        try {
+          const deduplicationResponse = await supabase.functions.invoke('deduplicate-stores', {
+            body: { stores: allStores }
+          });
+          
+          if (deduplicationResponse.data?.deduplicatedStores) {
+            console.log('Deduplication successful:', deduplicationResponse.data);
+            allStores = deduplicationResponse.data.deduplicatedStores;
+            totalFound = allStores.length;
+            
+            toast({
+              title: "Results consolidated",
+              description: `Consolidated ${deduplicationResponse.data.originalCount} results into ${deduplicationResponse.data.deduplicatedCount} unique stores`,
+            });
+          }
+        } catch (deduplicationError) {
+          console.error('Deduplication failed, using original results:', deduplicationError);
+          // Continue with original results if deduplication fails
+        }
+      }
+
       setResults({
         stores: allStores,
         searchedProduct: productName.trim(),
@@ -295,7 +320,7 @@ export function ProductSearch() {
       } else {
         toast({
           title: "Search completed",
-          description: `Found ${totalFound} result(s) for "${productName}"`,
+          description: `Found ${totalFound} unique result(s) for "${productName}"`,
         });
       }
     } catch (error) {
@@ -488,6 +513,14 @@ export function ProductSearch() {
                               <p className="text-sm text-muted-foreground mb-2">
                                 Selling {isOnline ? onlineResult!.product.name : localResult!.product.name}
                               </p>
+                              {/* Show consolidation info */}
+                              {'isConsolidated' in result && result.isConsolidated && (
+                                <div className="flex items-center gap-1 mb-2">
+                                  <Badge variant="secondary" className="text-xs">
+                                    📍 Consolidated from {(result as any).sourceCount} sources
+                                  </Badge>
+                                </div>
+                              )}
                             </div>
                             <Badge 
                               variant="outline" 
