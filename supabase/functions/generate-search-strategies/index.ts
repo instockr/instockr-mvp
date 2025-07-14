@@ -27,18 +27,18 @@ serve(async (req) => {
     const prompt = `Given the product "${productName}", identify the types of physical stores in Italy that would sell this product.
 
 Return ONLY store categories, NOT the product name itself.
-Maximum 3 categories.
+Maximum 2 categories.
 Use Italian terms for store types.
 
 Examples:
-- "smartphone" → ["elettronica", "telefonia", "tecnologia"]
-- "cacciavite" → ["ferramenta", "bricolage", "utensili"]
-- "medicina" → ["farmacia", "parafarmacia", "sanitari"]
-- "libro" → ["libreria", "cartoleria", "edicola"]
+- "smartphone" → ["elettronica", "telefonia"]
+- "cacciavite" → ["ferramenta", "bricolage"]
+- "medicina" → ["farmacia", "parafarmacia"]
+- "libro" → ["libreria", "cartoleria"]
 
 Return a JSON object with this structure:
 {
-  "searchTerms": ["category1", "category2", "category3"]
+  "searchTerms": ["category1", "category2"]
 }
 
 Product: ${productName}`;
@@ -104,32 +104,32 @@ function generateFallbackSearchTerms(productName: string): any {
   const lowerProductName = productName.toLowerCase();
 
   if (lowerProductName.includes('phone') || lowerProductName.includes('smartphone') || lowerProductName.includes('cellulare')) {
-    productSpecificTerms.push("elettronica", "telefonia", "tecnologia");
+    productSpecificTerms.push("elettronica", "telefonia");
   }
   else if (lowerProductName.includes('computer') || lowerProductName.includes('laptop') || lowerProductName.includes('pc')) {
-    productSpecificTerms.push("informatica", "elettronica", "tecnologia");
+    productSpecificTerms.push("informatica", "elettronica");
   }
   else if (lowerProductName.includes('book') || lowerProductName.includes('libro')) {
-    productSpecificTerms.push("libreria", "cartoleria", "edicola");
+    productSpecificTerms.push("libreria", "cartoleria");
   }
   else if (lowerProductName.includes('medicine') || lowerProductName.includes('farmaco') || lowerProductName.includes('aspirina')) {
-    productSpecificTerms.push("farmacia", "parafarmacia", "sanitari");
+    productSpecificTerms.push("farmacia", "parafarmacia");
   }
   else if (lowerProductName.includes('tool') || lowerProductName.includes('cacciavite') || lowerProductName.includes('martello')) {
-    productSpecificTerms.push("ferramenta", "bricolage", "utensili");
+    productSpecificTerms.push("ferramenta", "bricolage");
   }
   else if (lowerProductName.includes('food') || lowerProductName.includes('cibo')) {
-    productSpecificTerms.push("supermercato", "alimentari", "ipermercato");
+    productSpecificTerms.push("supermercato", "alimentari");
   }
   else if (lowerProductName.includes('materasso') || lowerProductName.includes('mattress')) {
-    productSpecificTerms.push("arredamento", "materassi", "mobili");
+    productSpecificTerms.push("arredamento", "materassi");
   }
   else {
-    productSpecificTerms.push("elettronica", "negozi", "retail");
+    productSpecificTerms.push("elettronica", "negozi");
   }
 
-  // Return only store categories, max 3
+  // Return only store categories, max 2
   return {
-    searchTerms: productSpecificTerms.slice(0, 3)
+    searchTerms: productSpecificTerms.slice(0, 2)
   };
 }

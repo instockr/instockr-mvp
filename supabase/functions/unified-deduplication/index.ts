@@ -42,24 +42,27 @@ serve(async (req) => {
     for (const store of stores) {
       if (!store.name || !store.url) continue;
 
-      // Create multiple matching keys for robust deduplication
-      const keys = [
-        // Exact URL match
-        store.url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, ''),
-        // Domain + name match
-        `${extractDomain(store.url)}-${normalizeStoreName(store.name)}`,
-        // Name similarity match
-        normalizeStoreName(store.name)
-      ];
-
+      // Create strict matching keys for conservative deduplication
+      const exactUrl = store.url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const domain = extractDomain(store.url);
+      const normalizedName = normalizeStoreName(store.name);
+      
       let isDuplicate = false;
       let existingStore: Store | null = null;
 
-      // Check if any key matches existing stores
-      for (const key of keys) {
-        if (seenStores.has(key)) {
+      // Only consider exact matches to avoid over-deduplication
+      for (const [key, existingStoreData] of seenStores) {
+        const existingUrl = existingStoreData.url?.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+        const existingDomain = extractDomain(existingStoreData.url || '');
+        const existingNormalizedName = normalizeStoreName(existingStoreData.name);
+        
+        // Only mark as duplicate if:
+        // 1. Exact URL match, OR
+        // 2. Same domain AND very similar name (exact match after normalization)
+        if (exactUrl === existingUrl || 
+            (domain === existingDomain && normalizedName === existingNormalizedName && domain !== '' && normalizedName !== '')) {
           isDuplicate = true;
-          existingStore = seenStores.get(key)!;
+          existingStore = existingStoreData;
           break;
         }
       }
@@ -68,20 +71,20 @@ serve(async (req) => {
         // Merge duplicates - combine information
         const merged = mergeDuplicateStores(existingStore, store);
         
-        // Update all keys to point to merged store
-        keys.forEach(key => seenStores.set(key, merged));
-        
         // Update in results array
         const index = deduplicatedStores.findIndex(s => s.id === existingStore.id);
         if (index !== -1) {
           deduplicatedStores[index] = merged;
         }
+        
+        // Update the seenStores map
+        seenStores.set(store.id, merged);
       } else {
         // New store - add to results
         deduplicatedStores.push(store);
         
-        // Register all keys
-        keys.forEach(key => seenStores.set(key, store));
+        // Register the store
+        seenStores.set(store.id, store);
       }
     }
 

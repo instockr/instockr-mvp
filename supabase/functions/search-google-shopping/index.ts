@@ -24,8 +24,8 @@ serve(async (req) => {
 
     console.log('Searching Google Shopping for:', query);
 
-    // Using Google Custom Search API for shopping results
-    const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=017576662512468239146:omuauf_lfve&q=${encodeURIComponent(query)}&gl=it&hl=it&num=${limit}`;
+    // Using Google Custom Search API for shopping results - fix the search engine ID
+    const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=004486725648515127932:czqibmg6fks&q=${encodeURIComponent(query)}&gl=it&hl=it&num=${limit}`;
 
     const response = await fetch(searchUrl);
     
