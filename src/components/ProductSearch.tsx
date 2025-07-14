@@ -651,8 +651,8 @@ const geocodeLocation = async (locationStr: string) => {
 
                           {/* CENTER: Store Information */}
                           <div className="flex-1">
-                            {/* Store name with category label */}
-                            <div className="flex items-center justify-between mb-1">
+                            {/* Store name with category tag */}
+                            <div className="flex items-center gap-2 mb-2">
                               <h3 className="text-xl font-semibold">{storeName}</h3>
                               {result.product.name && (
                                 <Badge variant="outline" className="text-xs px-2 py-1 bg-primary/10 text-primary border-primary/20">
@@ -660,11 +660,6 @@ const geocodeLocation = async (locationStr: string) => {
                                 </Badge>
                               )}
                             </div>
-                            
-                            {/* Product name subtitle on second row */}
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {result.product.name}
-                            </p>
                             
                             {/* Location */}
                             <div className="flex items-center gap-2 mb-2">
