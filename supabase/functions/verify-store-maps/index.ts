@@ -20,6 +20,7 @@ interface StoreVerificationResult {
   googlePlaceId?: string;
   rating?: number;
   userRatingsTotal?: number;
+  photoUrl?: string;
 }
 
 serve(async (req) => {
@@ -59,8 +60,8 @@ serve(async (req) => {
 
     console.log(`Found place: ${place.name} with ID: ${placeId}`);
 
-    // Get detailed place information including opening hours
-    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,opening_hours,rating,user_ratings_total&key=${googleMapsApiKey}`;
+    // Get detailed place information including opening hours and photos
+    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,opening_hours,rating,user_ratings_total,photos&key=${googleMapsApiKey}`;
     
     const detailsResponse = await fetch(detailsUrl);
     const detailsData = await detailsResponse.json();
@@ -80,13 +81,21 @@ serve(async (req) => {
     const placeDetails = detailsData.result;
     const openingHours = placeDetails.opening_hours;
 
+    // Get the first photo if available
+    let photoUrl = '';
+    if (placeDetails.photos && placeDetails.photos.length > 0) {
+      const photoReference = placeDetails.photos[0].photo_reference;
+      photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${googleMapsApiKey}`;
+    }
+
     const result: StoreVerificationResult = {
       verified: true,
       googlePlaceId: placeId,
       rating: placeDetails.rating,
       userRatingsTotal: placeDetails.user_ratings_total,
       openingHours: openingHours?.weekday_text,
-      isOpen: openingHours?.open_now
+      isOpen: openingHours?.open_now,
+      photoUrl: photoUrl || undefined
     };
 
     console.log(`Store verification result:`, result);

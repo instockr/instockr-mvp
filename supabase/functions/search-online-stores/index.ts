@@ -91,6 +91,13 @@ serve(async (req) => {
           
           // Create a result for each found page
           if (result.title && result.url) {
+            // Determine if this is actually a physical store or online
+            const isPhysicalStore = result.title.toLowerCase().includes('apple store') || 
+                                  result.title.toLowerCase().includes('piazza liberty') ||
+                                  result.url.includes('tripadvisor.com') ||
+                                  result.url.includes('apple.com/newsroom') ||
+                                  (result.markdown && result.markdown.toLowerCase().includes('address'));
+                                  
             onlineResults.push({
               id: `search-result-${index}-${Date.now()}`,
               name: result.title,
@@ -107,7 +114,7 @@ serve(async (req) => {
                 availability: 'Contact store for availability'
               },
               url: result.url,
-              isOnline: true
+              isOnline: !isPhysicalStore // Mark as physical store if it looks like one
             });
           }
         });

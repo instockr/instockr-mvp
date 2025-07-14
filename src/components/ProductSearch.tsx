@@ -542,11 +542,28 @@ export function ProductSearch() {
                 return (
                   <Card key={index} className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6">
-                      <div className="flex items-start gap-4">
-                        {/* Store Image Placeholder */}
-                        <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Store className="h-8 w-8 text-muted-foreground" />
-                        </div>
+                       <div className="flex items-start gap-4">
+                         {/* Store Image */}
+                         <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {!isOnline && (localResult as any).verification?.photoUrl ? (
+                              <img 
+                                src={(localResult as any).verification.photoUrl} 
+                                alt={`${localResult!.store.name} storefront`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+                                  if (fallback) {
+                                    target.style.display = 'none';
+                                    fallback.style.display = 'flex';
+                                  }
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-full h-full items-center justify-center fallback-icon ${!isOnline && (localResult as any).verification?.photoUrl ? 'hidden' : 'flex'}`}>
+                              <Store className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                         </div>
                         
                         <div className="flex-1">
                           <div className="flex justify-between items-start mb-3">
