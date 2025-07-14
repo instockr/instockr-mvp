@@ -295,10 +295,7 @@ export function ProductSearch() {
             allStores = deduplicationResponse.data.deduplicatedStores;
             totalFound = allStores.length;
             
-            toast({
-              title: "Results consolidated",
-              description: `Consolidated ${deduplicationResponse.data.originalCount} results into ${deduplicationResponse.data.deduplicatedCount} unique stores`,
-            });
+            // Results consolidated silently - no need to notify user
           }
         } catch (deduplicationError) {
           console.error('Deduplication failed, using original results:', deduplicationError);
@@ -404,9 +401,16 @@ export function ProductSearch() {
       });
 
       console.log(`Filtered ${allStores.length} stores down to ${validStores.length} valid stores`);
+      console.log('Final valid stores being set in results:', validStores);
 
       setResults({
         stores: validStores,
+        searchedProduct: productName.trim(),
+        totalResults: validStores.length
+      });
+      
+      console.log('Results state has been set:', {
+        storeCount: validStores.length,
         searchedProduct: productName.trim(),
         totalResults: validStores.length
       });
