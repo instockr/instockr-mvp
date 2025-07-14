@@ -294,12 +294,23 @@ const geocodeLocation = async (locationStr: string) => {
               productName: searchTerm,
               location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
               searchRadius: '50km',
-              physicalOnly: true, // Add flag to search for physical stores only
+              physicalOnly: false, // Don't filter too aggressively
               userLat: locationCoords?.lat || 45.4642,
               userLng: locationCoords?.lng || 9.19
             }
           });
           searchPromises.push(firecrawlPromise.then(result => ({ source: 'firecrawl', strategy: searchTerm, result })));
+        }
+
+        // Add Google Shopping search
+        for (const searchTerm of searchTerms) {
+          const googleShoppingPromise = supabase.functions.invoke('search-google-shopping', {
+            body: {
+              query: searchTerm,
+              limit: 5
+            }
+          });
+          searchPromises.push(googleShoppingPromise.then(result => ({ source: 'google_shopping', strategy: searchTerm, result })));
         }
         
         console.log(`Total search promises created: ${searchPromises.length}`);

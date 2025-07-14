@@ -22,101 +22,95 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
+    const googleApiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
 
-    // Search for products matching the name
-    const { data: products, error: productError } = await supabase
-      .from('products')
-      .select('*')
-      .ilike('name', `%${productName}%`);
-
-    if (productError) {
-      console.error('Product search error:', productError);
+    if (!googleApiKey) {
       return new Response(
-        JSON.stringify({ error: 'Failed to search products' }),
+        JSON.stringify({ error: 'Google Maps API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!products || products.length === 0) {
+    console.log('Searching Google Maps for:', productName, 'near', userLat, userLng);
+
+    // Use Google Maps Places API to search for stores selling the product
+    const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(productName + ' store shop negozio')}&location=${userLat},${userLng}&radius=${radius * 1000}&key=${googleApiKey}`;
+
+    const response = await fetch(searchUrl);
+    
+    if (!response.ok) {
+      console.error('Google Maps API error:', await response.text());
       return new Response(
-        JSON.stringify({ stores: [], message: 'No products found matching your search' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ stores: [], searchedProduct: productName, totalResults: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const productIds = products.map(p => p.id);
+    const data = await response.json();
+    const results = [];
 
-    // Get all stores with their inventory for the found products
-    const { data: storeData, error: storeError } = await supabase
-      .from('inventory')
-      .select(`
-        *,
-        stores!inner(*),
-        products!inner(*)
-      `)
-      .in('product_id', productIds)
-      .eq('in_stock', true);
+    if (data.results && Array.isArray(data.results)) {
+      data.results.forEach((place, index) => {
+        if (place.name && place.geometry?.location) {
+          // Calculate distance using Haversine formula
+          const lat1 = userLat * Math.PI / 180;
+          const lat2 = place.geometry.location.lat * Math.PI / 180;
+          const deltaLat = (place.geometry.location.lat - userLat) * Math.PI / 180;
+          const deltaLng = (place.geometry.location.lng - userLng) * Math.PI / 180;
 
-    if (storeError) {
-      console.error('Store search error:', storeError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to search stores' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+          const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                    Math.cos(lat1) * Math.cos(lat2) *
+                    Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = 6371 * c; // Earth's radius in km
+
+          // Determine store type
+          let storeType = 'retail';
+          const types = place.types || [];
+          if (types.includes('electronics_store')) {
+            storeType = 'electronics';
+          } else if (types.includes('home_goods_store') || types.includes('hardware_store')) {
+            storeType = 'department';
+          } else if (types.includes('pharmacy')) {
+            storeType = 'pharmacy';
+          } else if (types.includes('grocery_or_supermarket')) {
+            storeType = 'grocery';
+          }
+
+          results.push({
+            id: `google-maps-${Date.now()}-${index}`,
+            name: place.name,
+            store_type: storeType,
+            address: place.formatted_address || 'Address not available',
+            distance: Math.round(distance * 100) / 100,
+            latitude: place.geometry.location.lat,
+            longitude: place.geometry.location.lng,
+            phone: null, // Would need Place Details API call for phone
+            product: {
+              name: productName,
+              price: 'Contact store for pricing',
+              description: `${productName} potentially available`,
+              availability: 'Contact store for availability'
+            },
+            url: null,
+            isOnline: false,
+            source: 'Google Maps',
+            rating: place.rating || null,
+            userRatingsTotal: place.user_ratings_total || null
+          });
+        }
+      });
     }
 
-    // Calculate distances and filter by radius
-    const storesWithDistance = storeData?.map(item => {
-      const store = item.stores;
-      const product = item.products;
-      
-      // Calculate distance using Haversine formula (approximate)
-      const lat1 = userLat * Math.PI / 180;
-      const lat2 = store.latitude * Math.PI / 180;
-      const deltaLat = (store.latitude - userLat) * Math.PI / 180;
-      const deltaLng = (store.longitude - userLng) * Math.PI / 180;
-
-      const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-                Math.cos(lat1) * Math.cos(lat2) *
-                Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = 6371 * c; // Earth's radius in km
-
-      return {
-        store: {
-          id: store.id,
-          name: store.name,
-          address: store.address,
-          phone: store.phone,
-          store_type: store.store_type,
-          latitude: store.latitude,
-          longitude: store.longitude
-        },
-        product: {
-          id: product.id,
-          name: product.name,
-          brand: product.brand,
-          category: product.category
-        },
-        price: item.price,
-        distance: Math.round(distance * 100) / 100, // Round to 2 decimal places
-        last_updated: item.last_updated
-      };
-    }).filter(item => item.distance <= radius) // Filter by radius
-     .sort((a, b) => a.distance - b.distance); // Sort by distance
+    console.log(`Found ${results.length} Google Maps results`);
 
     return new Response(
-      JSON.stringify({ 
-        stores: storesWithDistance || [],
+      JSON.stringify({
+        stores: results,
         searchedProduct: productName,
-        totalResults: storesWithDistance?.length || 0
+        totalResults: results.length
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
