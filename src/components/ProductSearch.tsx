@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import instockrLogo from "@/assets/instockr-logo.png";
 
 interface Store {
   store: {
@@ -172,13 +173,36 @@ export function ProductSearch() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-          InStockr
-        </h1>
-        <p className="text-muted-foreground">
-          Find products in stores near you
-        </p>
+      <div className="text-center space-y-6">
+        <div className="flex items-center justify-center gap-4">
+          <img 
+            src={instockrLogo} 
+            alt="InStockr Logo" 
+            className="w-16 h-16 drop-shadow-lg"
+          />
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
+            InStockr
+          </h1>
+        </div>
+        <div className="max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground/80 mb-4">
+            Discover products instantly across local stores
+          </p>
+          <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              Real-time inventory
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              Distance-based search
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              Price comparison
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Search Form */}
