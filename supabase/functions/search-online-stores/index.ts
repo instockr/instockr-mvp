@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { productName, strategies } = await req.json();
+    const { productName, location, searchRadius, physicalOnly } = await req.json();
 
     if (!productName) {
       return new Response(
@@ -41,37 +41,32 @@ serve(async (req) => {
       );
     }
 
-    console.log('Searching online stores for:', productName);
+    console.log('Searching for physical stores selling:', productName);
+    console.log('Location:', location, 'Physical only:', physicalOnly);
 
-    // Use LLM-generated strategies if provided, otherwise fallback to default
-    const searchSources = strategies && strategies.length > 0 
-      ? strategies.map((strategy: any, index: number) => ({
-          name: strategy.name || `Strategy ${index + 1}`,
-          query: strategy.query,
-          limit: Math.min(strategy.priority || 3, 5)
-        }))
-      : [
-          {
-            name: 'General Product Search',
-            query: `${productName} negozio Italia comprare vendita online`,
-            limit: 4
-          },
-          {
-            name: 'Major E-commerce',
-            query: `${productName} site:amazon.it OR site:ebay.it OR site:zalando.it OR site:mediaworld.it`,
-            limit: 5
-          },
-          {
-            name: 'Price Comparison',
-            query: `${productName} prezzo migliore confronto prezzi site:idealo.it OR site:trovaprezzi.it`,
-            limit: 3
-          },
-          {
-            name: 'Italian Retailers',
-            query: `${productName} negozio italiano online spedizione Italia`,
-            limit: 4
-          }
-        ];
+    // Generate searches for physical stores that sell this product
+    const searchSources = [
+      {
+        name: 'Physical Store Search',
+        query: `${productName} negozio fisico punto vendita Italia indirizzo telefono`,
+        limit: 5
+      },
+      {
+        name: 'Store Locator Search',
+        query: `${productName} "dove comprare" "trova negozio" "store locator" Italia`,
+        limit: 4
+      },
+      {
+        name: 'Chain Stores Search',
+        query: `${productName} MediaWorld Unieuro Trony Euronics "punti vendita" negozi`,
+        limit: 4
+      },
+      {
+        name: 'Local Retailers',
+        query: `${productName} negozio locale rivenditore autorizzato Italia`,
+        limit: 3
+      }
+    ];
 
     const onlineResults = [];
 
@@ -113,24 +108,60 @@ serve(async (req) => {
         if (searchResult.success && searchResult.data && Array.isArray(searchResult.data)) {
           searchResult.data.forEach((result: any, index: number) => {
             if (result.title && result.url) {
-              // Determine store type based on URL
-              let storeType = 'retail';
-              const url = result.url.toLowerCase();
-              if (url.includes('amazon') || url.includes('ebay') || url.includes('marketplace')) {
-                storeType = 'marketplace';
-              } else if (url.includes('mediaworld') || url.includes('unieuro') || url.includes('electronics')) {
-                storeType = 'electronics';
-              } else if (url.includes('tim.it') || url.includes('vodafone') || url.includes('windtre') || url.includes('iliad')) {
-                storeType = 'mobile_carrier';
+              // Skip results that are clearly online-only if physicalOnly flag is set
+              if (physicalOnly) {
+                const content = (result.markdown || result.title || '').toLowerCase();
+                const isOnlineOnly = content.includes('spedizione gratuita') || 
+                                   content.includes('consegna a domicilio') ||
+                                   content.includes('acquista online') ||
+                                   content.includes('e-commerce') ||
+                                   (content.includes('online') && !content.includes('negozio') && !content.includes('store'));
+                
+                // Skip if it's clearly online-only
+                if (isOnlineOnly) {
+                  return;
+                }
               }
 
-              // Extract potential price from markdown
-              let price = 'Contact store for pricing';
+              // Look for physical location indicators
+              const hasPhysicalIndicators = result.markdown && 
+                (result.markdown.includes('indirizzo') || 
+                 result.markdown.includes('via ') || 
+                 result.markdown.includes('corso ') ||
+                 result.markdown.includes('piazza ') ||
+                 result.markdown.includes('telefono') ||
+                 result.markdown.includes('orari apertura') ||
+                 result.markdown.includes('store locator') ||
+                 result.markdown.includes('punti vendita'));
+
+              // Determine store type based on URL and content
+              let storeType = 'retail';
+              const url = result.url.toLowerCase();
+              if (url.includes('mediaworld') || url.includes('unieuro') || url.includes('trony') || url.includes('euronics')) {
+                storeType = 'electronics';
+              } else if (url.includes('ferramenta') || url.includes('leroy') || url.includes('bricolage')) {
+                storeType = 'hardware';
+              } else if (url.includes('farmacia')) {
+                storeType = 'pharmacy';
+              }
+
+              // Extract potential address and phone from markdown
+              let address = 'Address not available';
+              let phone = null;
+              
               if (result.markdown) {
-                const priceRegex = /€[\d.,]+|[\d.,]+\s*€|\$[\d.,]+/g;
-                const priceMatch = result.markdown.match(priceRegex);
-                if (priceMatch && priceMatch.length > 0) {
-                  price = priceMatch[0];
+                // Look for Italian addresses
+                const addressRegex = /(via|corso|piazza|viale)\s+[^,\n]+(?:,\s*\d{5}\s*[a-zA-Z]+)?/i;
+                const addressMatch = result.markdown.match(addressRegex);
+                if (addressMatch) {
+                  address = addressMatch[0];
+                }
+                
+                // Look for phone numbers
+                const phoneRegex = /(\+39\s*)?[\d\s\-]{8,15}/g;
+                const phoneMatch = result.markdown.match(phoneRegex);
+                if (phoneMatch) {
+                  phone = phoneMatch[0];
                 }
               }
 
@@ -138,19 +169,19 @@ serve(async (req) => {
                 id: `${source.name.toLowerCase().replace(/\s+/g, '-')}-${sourceIndex}-${index}-${Date.now()}`,
                 name: result.title,
                 store_type: storeType,
-                address: 'Online / Italy',
+                address: address,
                 distance: null,
                 latitude: null,
                 longitude: null,
-                phone: null,
+                phone: phone,
                 product: {
                   name: productName,
-                  price: price,
-                  description: result.markdown ? result.markdown.substring(0, 300) + '...' : `${productName} available`,
-                  availability: 'Check website for availability'
+                  price: 'Contact store for pricing',
+                  description: result.markdown ? result.markdown.substring(0, 200) + '...' : `${productName} available`,
+                  availability: 'Contact store for availability'
                 },
                 url: result.url,
-                isOnline: true,
+                isOnline: !hasPhysicalIndicators, // Mark as online if no physical indicators found
                 source: source.name
               });
             }
