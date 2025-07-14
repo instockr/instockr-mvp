@@ -251,8 +251,12 @@ export function ProductSearch() {
         });
         searchPromises.push(fallbackPromise.then(result => ({ source: 'local_db_fallback', strategy: 'fallback', result })));
       } else {
-        const { searchTerms } = strategiesResponse.data;
-        console.log('Generated search terms:', searchTerms);
+        const storeCategories = strategiesResponse.data?.searchTerms || [];
+        console.log('Generated store categories:', storeCategories);
+        
+        // Add the product name as a separate search term
+        const searchTerms = [...storeCategories, productName.trim()];
+        console.log('Final search terms (categories + product):', searchTerms);
 
         // Create promises for each search term and channel
         for (const searchTerm of searchTerms) {

@@ -24,28 +24,24 @@ serve(async (req) => {
 
     console.log('Generating search terms for:', productName);
 
-    const prompt = `
-    You are an expert at finding physical stores in Italy that sell specific products.
-    Given a product name, generate a list of search terms that will help find physical stores selling this product.
-    
-    Product: ${productName}
-    
-    Return a JSON object with this structure:
-    {
-      "searchTerms": ["term1", "term2", "term3", ...]
-    }
-    
-    Generate 3-5 search terms that represent:
-    1. Different store types (e.g., "ferramenta" for tools, "farmacia" for medicine)
-    2. Product categories (e.g., "elettronica" for electronics)
-    3. Specific Italian store chains that might sell this product
-    
-    Keep terms simple and focused on physical store types in Italy.
-    Examples:
-    - For "cacciavite": ["ferramenta", "bricolage", "fai da te", "elettronica"]
-    - For "aspirina": ["farmacia", "parafarmacia"]
-    - For "smartphone": ["elettronica", "telefonia", "negozi di cellulari"]
-  `;
+    const prompt = `Given the product "${productName}", identify the types of physical stores in Italy that would sell this product.
+
+Return ONLY store categories, NOT the product name itself.
+Maximum 3 categories.
+Use Italian terms for store types.
+
+Examples:
+- "smartphone" → ["elettronica", "telefonia", "tecnologia"]
+- "cacciavite" → ["ferramenta", "bricolage", "utensili"]
+- "medicina" → ["farmacia", "parafarmacia", "sanitari"]
+- "libro" → ["libreria", "cartoleria", "edicola"]
+
+Return a JSON object with this structure:
+{
+  "searchTerms": ["category1", "category2", "category3"]
+}
+
+Product: ${productName}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -104,44 +100,36 @@ serve(async (req) => {
 function generateFallbackSearchTerms(productName: string): any {
   console.log('Generating fallback search terms for:', productName);
   
-  const baseTerms = [productName, "negozi"];
   const productSpecificTerms: string[] = [];
   const lowerProductName = productName.toLowerCase();
 
   if (lowerProductName.includes('phone') || lowerProductName.includes('smartphone') || lowerProductName.includes('cellulare')) {
-    productSpecificTerms.push("telefonia", "negozi di cellulari", "elettronica");
+    productSpecificTerms.push("elettronica", "telefonia", "tecnologia");
   }
-
-  if (lowerProductName.includes('computer') || lowerProductName.includes('laptop') || lowerProductName.includes('pc')) {
-    productSpecificTerms.push("computer", "informatica", "elettronica");
+  else if (lowerProductName.includes('computer') || lowerProductName.includes('laptop') || lowerProductName.includes('pc')) {
+    productSpecificTerms.push("informatica", "elettronica", "tecnologia");
   }
-
-  if (lowerProductName.includes('book') || lowerProductName.includes('libro')) {
-    productSpecificTerms.push("librerie", "libri");
+  else if (lowerProductName.includes('book') || lowerProductName.includes('libro')) {
+    productSpecificTerms.push("libreria", "cartoleria", "edicola");
   }
-
-  if (lowerProductName.includes('medicine') || lowerProductName.includes('farmaco') || lowerProductName.includes('aspirina')) {
-    productSpecificTerms.push("farmacia", "parafarmacia");
+  else if (lowerProductName.includes('medicine') || lowerProductName.includes('farmaco') || lowerProductName.includes('aspirina')) {
+    productSpecificTerms.push("farmacia", "parafarmacia", "sanitari");
   }
-
-  if (lowerProductName.includes('tool') || lowerProductName.includes('cacciavite') || lowerProductName.includes('martello')) {
-    productSpecificTerms.push("ferramenta", "bricolage", "fai da te");
+  else if (lowerProductName.includes('tool') || lowerProductName.includes('cacciavite') || lowerProductName.includes('martello')) {
+    productSpecificTerms.push("ferramenta", "bricolage", "utensili");
   }
-
-  if (lowerProductName.includes('food') || lowerProductName.includes('cibo')) {
-    productSpecificTerms.push("supermercato", "alimentari");
+  else if (lowerProductName.includes('food') || lowerProductName.includes('cibo')) {
+    productSpecificTerms.push("supermercato", "alimentari", "ipermercato");
   }
-
-  if (lowerProductName.includes('materasso') || lowerProductName.includes('mattress')) {
+  else if (lowerProductName.includes('materasso') || lowerProductName.includes('mattress')) {
     productSpecificTerms.push("arredamento", "materassi", "mobili");
   }
-
-  // Add general electronics term if no specific category found
-  if (productSpecificTerms.length === 0) {
-    productSpecificTerms.push("elettronica", "negozi specializzati");
+  else {
+    productSpecificTerms.push("elettronica", "negozi", "retail");
   }
 
+  // Return only store categories, max 3
   return {
-    searchTerms: [...baseTerms, ...productSpecificTerms]
+    searchTerms: productSpecificTerms.slice(0, 3)
   };
 }
