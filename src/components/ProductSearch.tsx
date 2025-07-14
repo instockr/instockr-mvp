@@ -741,6 +741,18 @@ export function ProductSearch() {
                                  </a>
                                </Button>
                              )}
+                             {!isOnline && (result as any).verification?.website && (
+                               <Button variant="default" size="sm" asChild>
+                                 <a 
+                                   href={(result as any).verification.website} 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   className="flex items-center gap-2"
+                                 >
+                                   Visit Website <ExternalLink className="h-4 w-4" />
+                                 </a>
+                               </Button>
+                             )}
                            </div>
                         </div>
                       </div>

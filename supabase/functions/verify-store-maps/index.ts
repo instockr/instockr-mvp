@@ -21,6 +21,7 @@ interface StoreVerificationResult {
   rating?: number;
   userRatingsTotal?: number;
   photoUrl?: string;
+  website?: string;
 }
 
 serve(async (req) => {
@@ -61,7 +62,7 @@ serve(async (req) => {
     console.log(`Found place: ${place.name} with ID: ${placeId}`);
 
     // Get detailed place information including opening hours and photos
-    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,opening_hours,rating,user_ratings_total,photos&key=${googleMapsApiKey}`;
+    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,opening_hours,rating,user_ratings_total,photos,website&key=${googleMapsApiKey}`;
     
     const detailsResponse = await fetch(detailsUrl);
     const detailsData = await detailsResponse.json();
@@ -95,7 +96,8 @@ serve(async (req) => {
       userRatingsTotal: placeDetails.user_ratings_total,
       openingHours: openingHours?.weekday_text,
       isOpen: openingHours?.open_now,
-      photoUrl: photoUrl || undefined
+      photoUrl: photoUrl || undefined,
+      website: placeDetails.website || undefined
     };
 
     console.log(`Store verification result:`, result);
