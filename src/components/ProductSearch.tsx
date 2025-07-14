@@ -244,12 +244,12 @@ export function ProductSearch() {
         const fallbackPromise = supabase.functions.invoke('search-stores', {
           body: {
             productName: productName.trim(),
-            location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
-            latitude: locationCoords?.lat,
-            longitude: locationCoords?.lng
+            userLat: locationCoords?.lat || 45.4642, // Default to Milan if no coords
+            userLng: locationCoords?.lng || 9.19,
+            radius: 50
           }
         });
-        searchPromises.push(fallbackPromise);
+        searchPromises.push(fallbackPromise.then(result => ({ source: 'local_db_fallback', strategy: 'fallback', result })));
       } else {
         const { strategies } = strategiesResponse.data;
         console.log('Generated strategies:', strategies.length);
@@ -264,9 +264,9 @@ export function ProductSearch() {
             const searchPromise = supabase.functions.invoke('search-stores', {
               body: {
                 productName: strategy.query,
-                location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
-                latitude: locationCoords?.lat,
-                longitude: locationCoords?.lng
+                userLat: locationCoords?.lat || 45.4642,
+                userLng: locationCoords?.lng || 9.19,
+                radius: 50
               }
             });
             searchPromises.push(searchPromise.then(result => ({ source: 'google_maps', strategy: strategy.name, result })));
