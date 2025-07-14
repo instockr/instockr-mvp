@@ -302,15 +302,9 @@ export function ProductSearch() {
           console.log(`Result ${index} (${searchResult.source}/${searchResult.strategy}) returned ${searchResult.result.data.stores.length} stores`);
           console.log(`Sample stores from result ${index}:`, searchResult.result.data.stores.slice(0, 2));
           
-          // Filter out online stores - only include stores with physical locations
-          const physicalStores = searchResult.result.data.stores.filter((store: any) => {
-            const hasCoords = store.latitude && store.longitude;
-            const notOnline = !store.isOnline;
-            console.log(`Store ${store.name || store.store?.name}: hasCoords=${hasCoords}, notOnline=${notOnline}`);
-            return hasCoords && notOnline;
-          });
-          combinedStores.push(...physicalStores);
-          console.log(`Filtered to ${physicalStores.length} physical stores from result ${index}`);
+          // Add all stores to combined list - let Google Maps verification handle validation
+          combinedStores.push(...searchResult.result.data.stores);
+          console.log(`Added ${searchResult.result.data.stores.length} stores from result ${index}`);
         } else if (searchResult.result && searchResult.result.error) {
           console.error(`Search ${index} (${searchResult.source}/${searchResult.strategy}) failed:`, searchResult.result.error);
         } else {
