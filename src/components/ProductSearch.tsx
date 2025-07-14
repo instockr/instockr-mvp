@@ -312,6 +312,12 @@ export function ProductSearch() {
         try {
           const verifiedStores = await Promise.all(
             allStores.map(async (store: Store | OnlineStore) => {
+              // Safety check - skip if store is null or undefined
+              if (!store) {
+                console.warn('Skipping undefined store during verification');
+                return null;
+              }
+              
               // Try to verify every store with Google Maps
               try {
                 let storeName, storeAddress, latitude, longitude;
@@ -365,7 +371,8 @@ export function ProductSearch() {
             })
           );
           
-          allStores = verifiedStores;
+          // Filter out any null/undefined results
+          allStores = verifiedStores.filter(store => store !== null && store !== undefined);
         } catch (verificationError) {
           console.error('Store verification failed, using original results:', verificationError);
         }
