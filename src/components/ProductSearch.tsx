@@ -160,27 +160,22 @@ export function ProductSearch() {
     // Use a free geocoding service to convert city name to coordinates
     try {
       const response = await fetch(
-        `https://api.bigdatacloud.net/data/geocode-client?query=${encodeURIComponent(locationStr)}&localityLanguage=en`
+        `https://api.bigdatacloud.net/data/forward-geocode-client?query=${encodeURIComponent(locationStr)}&localityLanguage=en`
       );
       const data = await response.json();
       
       if (data.results && data.results.length > 0) {
+        const result = data.results[0];
         return {
-          lat: data.results[0].latitude,
-          lng: data.results[0].longitude
+          lat: result.latitude,
+          lng: result.longitude
         };
       }
     } catch (error) {
       console.error('Geocoding error:', error);
     }
     
-    // Fallback to NYC coordinates
-    toast({
-      title: "Location not found",
-      description: "Using default location. Please try a more specific city name.",
-      variant: "destructive",
-    });
-    return { lat: 40.7128, lng: -74.0060 };
+    throw new Error(`Location "${locationStr}" not found`);
   };
 
   const handleSearch = async () => {
@@ -248,6 +243,8 @@ export function ProductSearch() {
         if (onlineResult.status === 'fulfilled' && onlineResult.value.data?.stores) {
           allStores = [...allStores, ...onlineResult.value.data.stores];
           totalFound += onlineResult.value.data.stores.length;
+        } else if (onlineResult.status === 'rejected') {
+          console.error('Online search failed:', onlineResult.reason);
         }
       }
 
@@ -270,9 +267,10 @@ export function ProductSearch() {
       }
     } catch (error) {
       console.error('Search error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unable to search for stores. Please try again.';
       toast({
         title: "Search failed",
-        description: "Unable to search for stores. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
