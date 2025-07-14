@@ -590,12 +590,30 @@ export function ProductSearch() {
           ) : (
             <div className="grid gap-4">
               {results.stores.filter(result => result != null).map((result, index) => {
-                // Safety check - skip if result is null or undefined
-                if (!result) return null;
+                // EXTREME safety check - skip if result is null or undefined
+                if (!result) {
+                  console.error('Found null result in filtered array at index:', index);
+                  return null;
+                }
+                
+                console.log('Processing result:', index, result);
                 
                 const isOnline = 'isOnline' in result && result.isOnline;
                 const onlineResult = isOnline ? result as OnlineStore : null;
                 const localResult = !isOnline ? result as Store : null;
+                
+                // Additional safety checks for required properties
+                if (isOnline) {
+                  if (!onlineResult || !onlineResult.name || !onlineResult.product) {
+                    console.error('Invalid online store data:', onlineResult);
+                    return null;
+                  }
+                } else {
+                  if (!localResult || !localResult.store || !localResult.store.name || !localResult.product) {
+                    console.error('Invalid local store data:', localResult);
+                    return null;
+                  }
+                }
                 
                 return (
                   <Card key={index} className="hover:shadow-lg transition-shadow">
