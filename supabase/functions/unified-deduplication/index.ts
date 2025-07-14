@@ -35,56 +35,51 @@ serve(async (req) => {
 
     console.log(`Deduplicating ${stores.length} stores from all sources`);
 
-    // Enhanced deduplication logic
+    // Simplified conservative deduplication logic
     const deduplicatedStores: Store[] = [];
-    const seenStores = new Map<string, Store>();
 
     for (const store of stores) {
-      if (!store.name || !store.url) continue;
+      if (!store.name || !store.url) {
+        deduplicatedStores.push(store);
+        continue;
+      }
 
-      // Create strict matching keys for conservative deduplication
-      const exactUrl = store.url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-      const domain = extractDomain(store.url);
-      const normalizedName = normalizeStoreName(store.name);
+      const currentUrl = store.url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const currentDomain = extractDomain(store.url);
+      const currentName = normalizeStoreName(store.name);
       
       let isDuplicate = false;
-      let existingStore: Store | null = null;
+      let duplicateIndex = -1;
 
-      // Only consider exact matches to avoid over-deduplication
-      for (const [key, existingStoreData] of seenStores) {
-        const existingUrl = existingStoreData.url?.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-        const existingDomain = extractDomain(existingStoreData.url || '');
-        const existingNormalizedName = normalizeStoreName(existingStoreData.name);
+      // Check against already processed stores
+      for (let i = 0; i < deduplicatedStores.length; i++) {
+        const existing = deduplicatedStores[i];
+        if (!existing.url || !existing.name) continue;
+        
+        const existingUrl = existing.url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+        const existingDomain = extractDomain(existing.url);
+        const existingName = normalizeStoreName(existing.name);
         
         // Only mark as duplicate if:
         // 1. Exact URL match, OR
-        // 2. Same domain AND very similar name (exact match after normalization)
-        if (exactUrl === existingUrl || 
-            (domain === existingDomain && normalizedName === existingNormalizedName && domain !== '' && normalizedName !== '')) {
+        // 2. Same domain AND exact name match after normalization
+        if (currentUrl === existingUrl || 
+            (currentDomain === existingDomain && currentName === existingName && 
+             currentDomain !== '' && currentName !== '' && currentDomain.length > 3)) {
           isDuplicate = true;
-          existingStore = existingStoreData;
+          duplicateIndex = i;
           break;
         }
       }
 
-      if (isDuplicate && existingStore) {
-        // Merge duplicates - combine information
-        const merged = mergeDuplicateStores(existingStore, store);
-        
-        // Update in results array
-        const index = deduplicatedStores.findIndex(s => s.id === existingStore.id);
-        if (index !== -1) {
-          deduplicatedStores[index] = merged;
-        }
-        
-        // Update the seenStores map
-        seenStores.set(store.id, merged);
+      if (isDuplicate && duplicateIndex >= 0) {
+        // Merge with existing store
+        const existing = deduplicatedStores[duplicateIndex];
+        const merged = mergeDuplicateStores(existing, store);
+        deduplicatedStores[duplicateIndex] = merged;
       } else {
-        // New store - add to results
+        // Add as new store
         deduplicatedStores.push(store);
-        
-        // Register the store
-        seenStores.set(store.id, store);
       }
     }
 
