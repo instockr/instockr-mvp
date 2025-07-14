@@ -253,10 +253,14 @@ export function ProductSearch() {
       } else {
         const { strategies } = strategiesResponse.data;
         console.log('Generated strategies:', strategies.length);
+        console.log('Strategy details:', strategies);
 
         // Execute searches for each strategy
         for (const strategy of strategies) {
+          console.log(`Processing strategy: ${strategy.name} with channels:`, strategy.channels);
+          
           if (strategy.channels.includes('google_maps')) {
+            console.log(`Adding Google Maps search for strategy: ${strategy.name}`);
             const searchPromise = supabase.functions.invoke('search-stores', {
               body: {
                 productName: strategy.query,
@@ -265,19 +269,22 @@ export function ProductSearch() {
                 longitude: locationCoords?.lng
               }
             });
-            searchPromises.push(searchPromise);
+            searchPromises.push(searchPromise.then(result => ({ source: 'google_maps', strategy: strategy.name, result })));
           }
           
           if (strategy.channels.includes('firecrawl')) {
+            console.log(`Adding Firecrawl search for strategy: ${strategy.name}`);
             const firecrawlPromise = supabase.functions.invoke('search-online-stores', {
               body: { 
                 productName: productName.trim(),
                 strategies: [strategy]
               }
             });
-            searchPromises.push(firecrawlPromise);
+            searchPromises.push(firecrawlPromise.then(result => ({ source: 'firecrawl', strategy: strategy.name, result })));
           }
         }
+        
+        console.log(`Total search promises created: ${searchPromises.length}`);
       }
 
       // Wait for all searches to complete
@@ -287,17 +294,26 @@ export function ProductSearch() {
       // Step 3: Combine all results and filter for physical stores only
       const combinedStores: Store[] = [];
       
-      allResults.forEach((result, index) => {
-        if (result.data && result.data.stores && Array.isArray(result.data.stores)) {
-          console.log(`Result ${index} returned ${result.data.stores.length} stores`);
+      allResults.forEach((searchResult, index) => {
+        console.log(`Processing search result ${index}:`, searchResult);
+        
+        if (searchResult.result && searchResult.result.data && searchResult.result.data.stores && Array.isArray(searchResult.result.data.stores)) {
+          console.log(`Result ${index} (${searchResult.source}/${searchResult.strategy}) returned ${searchResult.result.data.stores.length} stores`);
+          console.log(`Sample stores from result ${index}:`, searchResult.result.data.stores.slice(0, 2));
+          
           // Filter out online stores - only include stores with physical locations
-          const physicalStores = result.data.stores.filter((store: any) => 
-            store.latitude && store.longitude && !store.isOnline
-          );
+          const physicalStores = searchResult.result.data.stores.filter((store: any) => {
+            const hasCoords = store.latitude && store.longitude;
+            const notOnline = !store.isOnline;
+            console.log(`Store ${store.name || store.store?.name}: hasCoords=${hasCoords}, notOnline=${notOnline}`);
+            return hasCoords && notOnline;
+          });
           combinedStores.push(...physicalStores);
           console.log(`Filtered to ${physicalStores.length} physical stores from result ${index}`);
-        } else if (result.error) {
-          console.error(`Search ${index} failed:`, result.error);
+        } else if (searchResult.result && searchResult.result.error) {
+          console.error(`Search ${index} (${searchResult.source}/${searchResult.strategy}) failed:`, searchResult.result.error);
+        } else {
+          console.warn(`Search result ${index} has unexpected structure:`, searchResult);
         }
       });
 
