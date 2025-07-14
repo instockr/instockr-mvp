@@ -43,34 +43,99 @@ serve(async (req) => {
 
     console.log('Searching online stores for:', productName);
 
-    // Define multiple search sources with specific queries
+    // Smart product-to-store-type mapping for Italian market
+    const getStoreTypesForProduct = (product: string): string[] => {
+      const productLower = product.toLowerCase();
+      
+      // Electronics & Technology
+      if (productLower.includes('iphone') || productLower.includes('smartphone') || productLower.includes('cellulare') || productLower.includes('telefono')) {
+        return ['negozio telefonia', 'TIM Vodafone WindTre Iliad', 'elettronica'];
+      }
+      if (productLower.includes('laptop') || productLower.includes('computer') || productLower.includes('pc') || productLower.includes('elettronic')) {
+        return ['elettronica', 'informatica', 'mediaworld unieuro'];
+      }
+      
+      // Home & Furniture
+      if (productLower.includes('mattress') || productLower.includes('materasso') || productLower.includes('letto') || productLower.includes('bed')) {
+        return ['materassi', 'arredamento', 'mobili', 'ikea mondo convenienza'];
+      }
+      if (productLower.includes('furniture') || productLower.includes('mobili') || productLower.includes('divano') || productLower.includes('tavolo')) {
+        return ['arredamento', 'mobili', 'casa'];
+      }
+      
+      // Tools & Hardware
+      if (productLower.includes('cacciavite') || productLower.includes('screwdriver') || productLower.includes('martello') || productLower.includes('chiave')) {
+        return ['ferramenta', 'bricolage', 'fai da te', 'leroy merlin brico'];
+      }
+      if (productLower.includes('drill') || productLower.includes('trapano') || productLower.includes('utensili')) {
+        return ['ferramenta', 'utensili', 'bricolage'];
+      }
+      
+      // Fashion & Clothing
+      if (productLower.includes('shoes') || productLower.includes('scarpe') || productLower.includes('vestiti') || productLower.includes('clothing')) {
+        return ['abbigliamento', 'scarpe', 'moda', 'zara hm'];
+      }
+      
+      // Health & Beauty
+      if (productLower.includes('medicine') || productLower.includes('medicina') || productLower.includes('vitamina') || productLower.includes('farmaco')) {
+        return ['farmacia', 'parafarmacia', 'salute'];
+      }
+      
+      // Food & Grocery
+      if (productLower.includes('food') || productLower.includes('cibo') || productLower.includes('pasta') || productLower.includes('bread')) {
+        return ['supermercato', 'alimentari', 'coop esselunga'];
+      }
+      
+      // Sports & Recreation
+      if (productLower.includes('sport') || productLower.includes('fitness') || productLower.includes('calcio') || productLower.includes('tennis')) {
+        return ['articoli sportivi', 'decathlon', 'sport'];
+      }
+      
+      // Books & Media
+      if (productLower.includes('book') || productLower.includes('libro') || productLower.includes('cd') || productLower.includes('dvd')) {
+        return ['libreria', 'mediastore', 'cultura'];
+      }
+      
+      // Default fallback
+      return ['negozio', 'store'];
+    };
+
+    const storeTypes = getStoreTypesForProduct(productName);
+    
+    // Build dynamic search sources based on product and store types
     const searchSources = [
       {
-        name: 'General Web Search',
-        query: `${productName} store Milan Italy buy purchase`,
-        limit: 3
-      },
-      {
-        name: 'E-commerce Sites',
-        query: `${productName} site:amazon.it OR site:ebay.it OR site:mediaworld.it OR site:unieuro.it`,
+        name: 'General Product Search',
+        query: `${productName} negozio Italia comprare vendita online`,
         limit: 4
       },
       {
+        name: 'Major E-commerce',
+        query: `${productName} site:amazon.it OR site:ebay.it OR site:zalando.it OR site:mediaworld.it`,
+        limit: 5
+      },
+      {
         name: 'Price Comparison',
-        query: `${productName} prezzo migliore confronto prezzi site:idealo.it OR site:trovaprezzi.it`,
+        query: `${productName} prezzo migliore confronto prezzi site:idealo.it OR site:trovaprezzi.it OR site:kelkoo.it`,
         limit: 3
-      },
-      {
-        name: 'Electronics Retailers',
-        query: `${productName} elettronica negozio online Italia vendita`,
-        limit: 3
-      },
-      {
-        name: 'Mobile Carriers',
-        query: `${productName} TIM Vodafone WindTre Iliad negozio cellulare`,
-        limit: 2
       }
     ];
+
+    // Add store-type-specific searches
+    storeTypes.forEach((storeType, index) => {
+      searchSources.push({
+        name: `${storeType} Specialist Stores`,
+        query: `${productName} ${storeType} Italia negozio online vendita`,
+        limit: 3
+      });
+    });
+
+    // Add location-specific search
+    searchSources.push({
+      name: 'Local Italian Retailers',
+      query: `${productName} negozio italiano online spedizione Italia`,
+      limit: 4
+    });
 
     const onlineResults = [];
 
