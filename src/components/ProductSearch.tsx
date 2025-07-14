@@ -656,29 +656,41 @@ export function ProductSearch() {
                              </div>
                           </div>
                         
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                               <h3 className="text-xl font-semibold mb-1">
-                                 {isOnline ? onlineResult?.name || 'Unknown Store' : localResult?.store?.name || 'Unknown Store'}
+                         <div className="flex-1">
+                           <div className="flex justify-between items-start mb-3">
+                             <div className="flex items-center gap-2">
+                               <h3 className="text-xl font-semibold">
+                                 {isOnline ? onlineResult?.name || 'Unknown Store' : (localResult?.store?.name || (result as any).name || 'Unknown Store')}
                                </h3>
-                               <p className="text-sm text-muted-foreground mb-2">
-                                 Selling {isOnline ? onlineResult?.product?.name || 'Unknown Product' : localResult?.product?.name || 'Unknown Product'}
-                               </p>
-                            </div>
+                               {/* Store type badge next to name */}
+                               {isOnline ? (
+                                 <Badge variant="secondary" className="flex items-center gap-1">
+                                   <Globe className="h-3 w-3" />
+                                   Online Store
+                                 </Badge>
+                               ) : (
+                                 <Badge variant="secondary" className="flex items-center gap-1">
+                                   <Store className="h-3 w-3" />
+                                   Local Store
+                                 </Badge>
+                               )}
+                             </div>
                              <Badge 
                                variant="outline" 
-                               className={getStoreTypeColor(isOnline ? onlineResult?.store_type || 'other' : localResult?.store?.store_type || 'other')}
+                               className={getStoreTypeColor(isOnline ? onlineResult?.store_type || 'other' : (localResult?.store?.store_type || (result as any).store_type || 'other'))}
                              >
-                               {isOnline ? onlineResult?.store_type || 'other' : localResult?.store?.store_type || 'other'}
+                               {isOnline ? onlineResult?.store_type || 'other' : (localResult?.store?.store_type || (result as any).store_type || 'other')}
                              </Badge>
                            </div>
+                           <p className="text-sm text-muted-foreground mb-2">
+                             Selling {isOnline ? onlineResult?.product?.name || 'Unknown Product' : (localResult?.product?.name || (result as any).product?.name || 'Unknown Product')}
+                           </p>
                            
-                            <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4" />
-                                <span>{isOnline ? onlineResult?.address || 'Address not available' : localResult?.store?.address || 'Address not available'}</span>
-                              </div>
+                             <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                               <div className="flex items-center gap-2">
+                                 <MapPin className="h-4 w-4" />
+                                 <span>{isOnline ? onlineResult?.address || 'Address not available' : (localResult?.store?.address || (result as any).address || 'Address not available')}</span>
+                               </div>
                               {!isOnline && localResult?.distance && (
                                 <div className="flex items-center gap-2">
                                   <span className="ml-6">{localResult.distance.toFixed(1)} km away</span>
@@ -716,31 +728,20 @@ export function ProductSearch() {
                              )}
                            </div>
                           
-                          <div className="flex items-center gap-3">
-                            {isOnline && onlineResult?.url && (
-                              <Button variant="default" size="sm" asChild>
-                                <a 
-                                  href={onlineResult.url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2"
-                                >
-                                  Visit Website <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
-                            {isOnline ? (
-                              <Badge variant="secondary" className="flex items-center gap-1">
-                                <Globe className="h-3 w-3" />
-                                Online Store
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="flex items-center gap-1">
-                                <Store className="h-3 w-3" />
-                                Local Store
-                              </Badge>
-                            )}
-                          </div>
+                           <div className="flex items-center gap-3">
+                             {isOnline && onlineResult?.url && (
+                               <Button variant="default" size="sm" asChild>
+                                 <a 
+                                   href={onlineResult.url} 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   className="flex items-center gap-2"
+                                 >
+                                   Visit Website <ExternalLink className="h-4 w-4" />
+                                 </a>
+                               </Button>
+                             )}
+                           </div>
                         </div>
                       </div>
                     </CardContent>
