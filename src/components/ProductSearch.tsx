@@ -627,27 +627,27 @@ const geocodeLocation = async (locationStr: string) => {
                   <Card key={index} className="hover:shadow-lg transition-shadow">
                      <CardContent className="pt-6">
                         <div className="flex gap-4">
-                          {/* LEFT SIDE: Image (full height) */}
-                          <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                             {(result as any).verification?.photoUrl ? (
-                               <img 
-                                 src={(result as any).verification.photoUrl} 
-                                 alt={`${storeName} storefront`}
-                                 className="w-full h-full object-cover"
-                                 onError={(e) => {
-                                   const target = e.currentTarget as HTMLImageElement;
-                                   const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
-                                   if (fallback) {
-                                     target.style.display = 'none';
-                                     fallback.style.display = 'flex';
-                                   }
-                                 }}
-                               />
-                             ) : null}
-                             <div className={`w-full h-full items-center justify-center fallback-icon ${(result as any).verification?.photoUrl ? 'hidden' : 'flex'}`}>
-                               <Store className="h-8 w-8 text-muted-foreground" />
-                             </div>
-                          </div>
+                           {/* LEFT SIDE: Image (full height) */}
+                           <div className="w-24 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden self-stretch">
+                              {(result as any).verification?.photoUrl ? (
+                                <img 
+                                  src={(result as any).verification.photoUrl} 
+                                  alt={`${storeName} storefront`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.currentTarget as HTMLImageElement;
+                                    const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+                                    if (fallback) {
+                                      target.style.display = 'none';
+                                      fallback.style.display = 'flex';
+                                    }
+                                  }}
+                                />
+                              ) : null}
+                              <div className={`w-full h-full items-center justify-center fallback-icon ${(result as any).verification?.photoUrl ? 'hidden' : 'flex'}`}>
+                                <Store className="h-8 w-8 text-muted-foreground" />
+                              </div>
+                           </div>
 
                           {/* CENTER: Store Information */}
                           <div className="flex-1">
