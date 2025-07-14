@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import FirecrawlApp from 'https://esm.sh/@mendable/firecrawl-js@1.29.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,22 +44,18 @@ serve(async (req) => {
     const onlineResults = [];
 
     try {
-      // Use Firecrawl's search endpoint to find stores selling the product in Milan
+      // Initialize Firecrawl app
+      const app = new FirecrawlApp({ apiKey: firecrawlApiKey });
+      
+      // Use Firecrawl's search method to find stores selling the product in Milan
       const searchQuery = `${productName} store Milan Italy buy purchase`;
       
-      console.log('Using Firecrawl search for:', searchQuery);
+      console.log('Using Firecrawl SDK search for:', searchQuery);
       
-      const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${firecrawlApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: searchQuery,
-          pageOptions: {
-            fetchPageContent: true
-          },
+      const searchResult = await app.search(searchQuery, {
+        limit: 10,
+        scrapeOptions: {
+          formats: ["markdown"],
           extractorOptions: {
             extractionSchema: {
               stores: {
@@ -77,73 +74,67 @@ serve(async (req) => {
                 }
               }
             }
-          },
-          limit: 10
-        }),
+          }
+        }
       });
 
-      console.log('Firecrawl search response status:', searchResponse.status);
+      console.log('Firecrawl search result:', JSON.stringify(searchResult, null, 2));
 
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        console.log('Firecrawl search data:', JSON.stringify(searchData, null, 2));
-        
-        if (searchData.success && searchData.data) {
-          // Process search results
-          searchData.data.forEach((result: any, index: number) => {
-            // Extract store information from the search result
-            const extractedData = result.extract?.stores || [];
-            
-            if (extractedData.length > 0) {
-              extractedData.forEach((store: any, storeIndex: number) => {
-                if (store.location_milan || store.address?.toLowerCase().includes('milan')) {
-                  onlineResults.push({
-                    id: `search-result-${index}-${storeIndex}-${Date.now()}`,
-                    name: store.store_name || result.title || `Store ${index + 1}`,
-                    store_type: 'retail',
-                    address: store.address || 'Milan, Italy',
-                    distance: null,
-                    latitude: null,
-                    longitude: null,
-                    phone: store.phone || null,
-                    product: {
-                      name: productName,
-                      price: store.product_price || 'Contact store for pricing',
-                      description: `${productName} available at this location`,
-                      availability: store.availability || 'Contact store for availability'
-                    },
-                    url: store.website || result.url,
-                    isOnline: true
-                  });
-                }
-              });
-            } else {
-              // Fallback: create result from basic search data
-              if (result.title && result.url) {
+      if (searchResult.success && searchResult.data) {
+        // Process search results
+        searchResult.data.forEach((result: any, index: number) => {
+          // Extract store information from the search result
+          const extractedData = result.extract?.stores || [];
+          
+          if (extractedData.length > 0) {
+            extractedData.forEach((store: any, storeIndex: number) => {
+              if (store.location_milan || store.address?.toLowerCase().includes('milan')) {
                 onlineResults.push({
-                  id: `search-fallback-${index}-${Date.now()}`,
-                  name: result.title,
+                  id: `search-result-${index}-${storeIndex}-${Date.now()}`,
+                  name: store.store_name || result.title || `Store ${index + 1}`,
                   store_type: 'retail',
-                  address: 'Milan, Italy',
+                  address: store.address || 'Milan, Italy',
                   distance: null,
                   latitude: null,
                   longitude: null,
-                  phone: null,
+                  phone: store.phone || null,
                   product: {
                     name: productName,
-                    price: 'Contact store for pricing',
-                    description: result.description || `${productName} available`,
-                    availability: 'Contact store for availability'
+                    price: store.product_price || 'Contact store for pricing',
+                    description: `${productName} available at this location`,
+                    availability: store.availability || 'Contact store for availability'
                   },
-                  url: result.url,
+                  url: store.website || result.url,
                   isOnline: true
                 });
               }
+            });
+          } else {
+            // Fallback: create result from basic search data
+            if (result.title && result.url) {
+              onlineResults.push({
+                id: `search-fallback-${index}-${Date.now()}`,
+                name: result.title,
+                store_type: 'retail',
+                address: 'Milan, Italy',
+                distance: null,
+                latitude: null,
+                longitude: null,
+                phone: null,
+                product: {
+                  name: productName,
+                  price: 'Contact store for pricing',
+                  description: result.description || `${productName} available`,
+                  availability: 'Contact store for availability'
+                },
+                url: result.url,
+                isOnline: true
+              });
             }
-          });
-        }
+          }
+        });
       } else {
-        console.error('Firecrawl search failed:', searchResponse.status, await searchResponse.text());
+        console.error('Firecrawl search failed:', searchResult);
       }
     } catch (error) {
       console.error('Error during Firecrawl search:', error);
