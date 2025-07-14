@@ -40,12 +40,56 @@ serve(async (req) => {
 
     console.log('Searching online stores for:', productName);
 
-    // Milan-based store chains and Italian retailers
-    const storeChains = [
-      { name: 'IKEA Milano', searchUrl: 'https://www.ikea.com/it/it/search/products/?q=' },
-      { name: 'Unieuro Milano', searchUrl: 'https://www.unieuro.it/online/cerca?text=' },
-      { name: 'MediaWorld Milano', searchUrl: 'https://www.mediaworld.it/mw/search?q=' }
-    ];
+    // Categorize the product first
+    function categorizeProduct(productName: string): string {
+      const product = productName.toLowerCase();
+      
+      if (product.includes('iphone') || product.includes('samsung') || product.includes('phone') || 
+          product.includes('laptop') || product.includes('computer') || product.includes('tablet') ||
+          product.includes('tv') || product.includes('camera') || product.includes('headphone')) {
+        return 'electronics';
+      } else if (product.includes('pillow') || product.includes('sofa') || product.includes('furniture') ||
+                 product.includes('table') || product.includes('chair') || product.includes('bed') ||
+                 product.includes('lamp') || product.includes('curtain') || product.includes('decoration')) {
+        return 'home_goods';
+      } else if (product.includes('shirt') || product.includes('pants') || product.includes('dress') ||
+                 product.includes('shoes') || product.includes('jacket') || product.includes('clothing')) {
+        return 'clothing';
+      } else if (product.includes('food') || product.includes('grocery') || product.includes('milk') ||
+                 product.includes('bread') || product.includes('pasta') || product.includes('wine')) {
+        return 'grocery';
+      }
+      return 'general';
+    }
+
+    const productCategory = categorizeProduct(productName);
+    console.log('Product category:', productCategory);
+
+    // Milan store chains mapped by category
+    const storeChainsByCategory: Record<string, Array<{name: string, searchUrl: string}>> = {
+      electronics: [
+        { name: 'Unieuro Milano', searchUrl: 'https://www.unieuro.it/online/cerca?text=' },
+        { name: 'MediaWorld Milano', searchUrl: 'https://www.mediaworld.it/mw/search?q=' },
+        { name: 'Euronics Milano', searchUrl: 'https://www.euronics.it/search?q=' }
+      ],
+      home_goods: [
+        { name: 'IKEA Milano', searchUrl: 'https://www.ikea.com/it/it/search/products/?q=' },
+        { name: 'Leroy Merlin Milano', searchUrl: 'https://www.leroymerlin.it/ricerca/?term=' }
+      ],
+      clothing: [
+        { name: 'Zara Milano', searchUrl: 'https://www.zara.com/it/it/search?searchTerm=' },
+        { name: 'H&M Milano', searchUrl: 'https://www2.hm.com/it_it/search-results.html?q=' }
+      ],
+      grocery: [
+        { name: 'Esselunga Milano', searchUrl: 'https://www.esselunga.it/cms/ricerca/risultati.html?q=' },
+        { name: 'Coop Milano', searchUrl: 'https://www.coopshop.it/ricerca?q=' }
+      ],
+      general: [
+        { name: 'Amazon.it', searchUrl: 'https://www.amazon.it/s?k=' }
+      ]
+    };
+
+    const storeChains = storeChainsByCategory[productCategory] || storeChainsByCategory.general;
 
     const onlineResults = [];
 
