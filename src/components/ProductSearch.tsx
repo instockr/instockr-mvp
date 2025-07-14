@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, MapPin, Loader2 } from "lucide-react";
+import { Search, MapPin, Loader2, Globe, Store, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,8 +29,27 @@ interface Store {
   last_updated: string;
 }
 
+interface OnlineStore {
+  id: string;
+  name: string;
+  store_type: string;
+  address: string;
+  distance: null;
+  latitude: null;
+  longitude: null;
+  phone: null;
+  product: {
+    name: string;
+    price: string;
+    description?: string;
+    availability?: string;
+  };
+  url?: string;
+  isOnline: boolean;
+}
+
 interface SearchResult {
-  stores: Store[];
+  stores: (Store | OnlineStore)[];
   searchedProduct: string;
   totalResults: number;
 }
@@ -41,6 +60,7 @@ export function ProductSearch() {
   const [results, setResults] = useState<SearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [includeOnline, setIncludeOnline] = useState(true);
   const { toast } = useToast();
 
   const getCurrentLocation = () => {
@@ -119,8 +139,10 @@ export function ProductSearch() {
 
     try {
       const { lat, lng } = parseLocation(location);
+      const searchPromises = [];
 
-      const { data, error } = await supabase.functions.invoke('search-stores', {
+      // Always search local stores
+      const localSearchPromise = supabase.functions.invoke('search-stores', {
         body: {
           productName: productName.trim(),
           userLat: lat,
@@ -128,22 +150,54 @@ export function ProductSearch() {
           radius: 50 // 50km radius
         }
       });
+      searchPromises.push(localSearchPromise);
 
-      if (error) {
-        throw error;
+      // Search online stores if enabled
+      if (includeOnline) {
+        const onlineSearchPromise = supabase.functions.invoke('search-online-stores', {
+          body: {
+            productName: productName.trim()
+          }
+        });
+        searchPromises.push(onlineSearchPromise);
       }
 
-      setResults(data);
+      const searchResults = await Promise.allSettled(searchPromises);
       
-      if (data.totalResults === 0) {
+      let allStores: (Store | OnlineStore)[] = [];
+      let totalFound = 0;
+
+      // Process local results
+      const localResult = searchResults[0];
+      if (localResult.status === 'fulfilled' && localResult.value.data?.stores) {
+        allStores = [...allStores, ...localResult.value.data.stores];
+        totalFound += localResult.value.data.stores.length;
+      }
+
+      // Process online results if included
+      if (includeOnline && searchResults[1]) {
+        const onlineResult = searchResults[1];
+        if (onlineResult.status === 'fulfilled' && onlineResult.value.data?.stores) {
+          allStores = [...allStores, ...onlineResult.value.data.stores];
+          totalFound += onlineResult.value.data.stores.length;
+        }
+      }
+
+      setResults({
+        stores: allStores,
+        searchedProduct: productName.trim(),
+        totalResults: totalFound
+      });
+      
+      if (totalFound === 0) {
         toast({
           title: "No results found",
-          description: `No stores found with "${productName}" in stock nearby`,
+          description: `No stores found with "${productName}" in stock`,
         });
       } else {
         toast({
           title: "Search completed",
-          description: `Found ${data.totalResults} store(s) with "${productName}" in stock`,
+          description: `Found ${totalFound} result(s) for "${productName}"`,
         });
       }
     } catch (error) {
@@ -199,7 +253,7 @@ export function ProductSearch() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-              Price comparison
+              Online & local stores
             </div>
           </div>
         </div>
@@ -251,6 +305,20 @@ export function ProductSearch() {
             </div>
           </div>
 
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="includeOnline"
+              checked={includeOnline}
+              onChange={(e) => setIncludeOnline(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            <label htmlFor="includeOnline" className="text-sm font-medium flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              Include online stores
+            </label>
+          </div>
+
           <Button 
             onClick={handleSearch} 
             disabled={isLoading}
@@ -292,56 +360,115 @@ export function ProductSearch() {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {results.stores.map((result, index) => (
-                <Card key={index} className="hover:shadow-md transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold">{result.store.name}</h3>
-                        <p className="text-muted-foreground">{result.store.address}</p>
-                        {result.store.phone && (
-                          <p className="text-sm text-muted-foreground">{result.store.phone}</p>
-                        )}
-                      </div>
-                      <div className="text-right space-y-2">
-                        <Badge className={getStoreTypeColor(result.store.store_type)}>
-                          {result.store.store_type}
-                        </Badge>
-                        <p className="text-sm text-muted-foreground">
-                          {result.distance} km away
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="border-t pt-4 space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">{result.product.name}</p>
-                          {result.product.brand && (
+              {results.stores.map((result, index) => {
+                const isOnline = 'isOnline' in result && result.isOnline;
+                const onlineResult = isOnline ? result as OnlineStore : null;
+                const localResult = !isOnline ? result as Store : null;
+                
+                return (
+                  <Card key={index} className="hover:shadow-md transition-shadow">
+                    <CardContent className="pt-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold">
+                              {isOnline ? onlineResult!.name : localResult!.store.name}
+                            </h3>
+                            {isOnline ? (
+                              <Badge variant="outline" className="flex items-center gap-1">
+                                <Globe className="h-3 w-3" />
+                                Online
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="flex items-center gap-1">
+                                <Store className="h-3 w-3" />
+                                Local
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-muted-foreground">
+                            {isOnline ? onlineResult!.address : localResult!.store.address}
+                          </p>
+                          {!isOnline && localResult!.store.phone && (
+                            <p className="text-sm text-muted-foreground">{localResult!.store.phone}</p>
+                          )}
+                        </div>
+                        <div className="text-right space-y-2">
+                          <Badge className={getStoreTypeColor(isOnline ? onlineResult!.store_type : localResult!.store.store_type)}>
+                            {isOnline ? onlineResult!.store_type : localResult!.store.store_type}
+                          </Badge>
+                          {!isOnline && (
                             <p className="text-sm text-muted-foreground">
-                              by {result.product.brand}
+                              {localResult!.distance} km away
                             </p>
                           )}
                         </div>
-                        {result.price && (
-                          <p className="text-lg font-semibold text-primary">
-                            ${result.price}
-                          </p>
-                        )}
                       </div>
                       
-                      <div className="flex justify-between items-center text-sm text-muted-foreground">
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          ✓ In Stock
-                        </Badge>
-                        <span>
-                          Updated: {new Date(result.last_updated).toLocaleDateString()}
-                        </span>
+                      <div className="border-t pt-4 space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-medium">{result.product.name}</p>
+                            {!isOnline && 'brand' in localResult!.product && localResult!.product.brand && (
+                              <p className="text-sm text-muted-foreground">
+                                by {localResult!.product.brand}
+                              </p>
+                            )}
+                            {isOnline && onlineResult!.product.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {onlineResult!.product.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            {isOnline ? (
+                              <p className="text-lg font-semibold text-primary">
+                                {onlineResult!.product.price}
+                              </p>
+                            ) : localResult!.price && (
+                              <p className="text-lg font-semibold text-primary">
+                                ${localResult!.price}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center text-sm">
+                          <div>
+                            {isOnline && onlineResult!.product.availability ? (
+                              <Badge variant="outline" className="text-blue-600 border-blue-600">
+                                {onlineResult!.product.availability}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-green-600 border-green-600">
+                                ✓ In Stock
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isOnline && onlineResult!.url && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => window.open(onlineResult!.url!, '_blank')}
+                                className="flex items-center gap-1"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Visit Store
+                              </Button>
+                            )}
+                            {!isOnline && (
+                              <span className="text-muted-foreground">
+                                Updated: {new Date(localResult!.last_updated).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
