@@ -110,14 +110,14 @@ export function ProductSearch() {
       async (position) => {
         const { latitude, longitude } = position.coords;
         
-        // Reverse geocode to get city name
+        // Reverse geocode to get city name using Nominatim
         try {
           const response = await fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
           );
           const data = await response.json();
-          const cityName = data.city && data.countryName ? 
-            `${data.city}, ${data.countryName}` : 
+          const cityName = data.address && (data.address.city || data.address.town || data.address.village) && data.address.country ? 
+            `${data.address.city || data.address.town || data.address.village}, ${data.address.country}` : 
             `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
           
           setLocation(cityName);
@@ -200,6 +200,8 @@ export function ProductSearch() {
   };
 
   const handleSearch = async () => {
+    console.log('Search started with:', { productName, location });
+    
     if (!productName.trim()) {
       toast({
         title: "Product name required",
@@ -222,10 +224,14 @@ export function ProductSearch() {
     setResults(null);
 
     try {
+      console.log('Geocoding location:', location);
       const { lat, lng } = await geocodeLocation(location);
+      console.log('Geocoded coordinates:', { lat, lng });
+      
       const searchPromises = [];
 
       // Always search local stores
+      console.log('Starting local search...');
       const localSearchPromise = supabase.functions.invoke('search-stores', {
         body: {
           productName: productName.trim(),
@@ -237,6 +243,7 @@ export function ProductSearch() {
       searchPromises.push(localSearchPromise);
 
       // Always search online stores for additional location data
+      console.log('Starting online search...');
       const onlineSearchPromise = supabase.functions.invoke('search-online-stores', {
         body: {
           productName: productName.trim()
@@ -244,27 +251,36 @@ export function ProductSearch() {
       });
       searchPromises.push(onlineSearchPromise);
 
+      console.log('Waiting for search results...');
       const searchResults = await Promise.allSettled(searchPromises);
+      console.log('Search results received:', searchResults);
       
       let allStores: (Store | OnlineStore)[] = [];
       let totalFound = 0;
 
       // Process local results
       const localResult = searchResults[0];
+      console.log('Local result:', localResult);
       if (localResult.status === 'fulfilled' && localResult.value.data?.stores) {
         allStores = [...allStores, ...localResult.value.data.stores];
         totalFound += localResult.value.data.stores.length;
+        console.log('Added local stores:', localResult.value.data.stores.length);
+      } else if (localResult.status === 'rejected') {
+        console.error('Local search failed:', localResult.reason);
       }
 
       // Process online results
       const onlineResult = searchResults[1];
+      console.log('Online result:', onlineResult);
       if (onlineResult.status === 'fulfilled' && onlineResult.value.data?.stores) {
         allStores = [...allStores, ...onlineResult.value.data.stores];
         totalFound += onlineResult.value.data.stores.length;
+        console.log('Added online stores:', onlineResult.value.data.stores.length);
       } else if (onlineResult.status === 'rejected') {
         console.error('Online search failed:', onlineResult.reason);
       }
 
+      console.log('Final results:', { totalFound, allStores });
       setResults({
         stores: allStores,
         searchedProduct: productName.trim(),
@@ -291,6 +307,7 @@ export function ProductSearch() {
         variant: "destructive",
       });
     } finally {
+      console.log('Search completed, setting loading to false');
       setIsLoading(false);
     }
   };
