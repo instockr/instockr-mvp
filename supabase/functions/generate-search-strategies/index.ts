@@ -42,37 +42,35 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a search strategy expert for the Italian market. Given a product, generate multiple targeted search strategies to find where that product is sold online in Italy.
+            content: `You are a search strategy expert for finding PHYSICAL STORES in Italy. Given a product, generate multiple targeted search strategies to find physical retail locations that sell this product.
 
 Return a JSON object with this structure:
 {
   "strategies": [
     {
       "name": "Strategy Name",
-      "query": "search query in Italian/English",
-      "channels": ["google_shopping", "firecrawl", "google_maps"],
-      "storeTypes": ["specific store types"],
+      "query": "search query in Italian/English for physical stores",
+      "channels": ["google_maps", "firecrawl"],
+      "storeTypes": ["specific physical store types"],
       "priority": 1-5
     }
   ]
 }
 
-Focus on:
-- Italian market specifics
-- Different types of stores that sell this product
-- Major Italian e-commerce sites
-- Specialized retailers
-- Price comparison sites
-- Local store chains
-- Generic and specific search terms
+Focus ONLY on physical stores:
+- Italian retail chains and local stores
+- Specialized physical retailers
+- Department stores, supermarkets, pharmacies
+- Electronics stores, hardware stores, etc.
+- Use terms like "negozio", "punto vendita", "store", "shop"
+- Include specific Italian retail chain names
+- Geographic terms for Italian cities/regions
 
 Channels available:
-- firecrawl: Web scraping
-- google_shopping: Google Shopping API
-- google_maps: Google Maps Places API
-- price_comparison: Price comparison sites
+- google_maps: Google Maps Places API (primary for physical stores)
+- firecrawl: Web scraping for store finder pages
 
-Generate 8-12 diverse strategies covering different angles.`
+Generate 6-8 diverse strategies covering different types of physical retailers.`
           },
           {
             role: 'user',
@@ -129,24 +127,24 @@ function generateFallbackStrategies(productName: string) {
   
   const strategies = [
     {
-      name: "General Italian Search",
-      query: `${productName} negozio Italia comprare vendita online`,
-      channels: ["firecrawl"],
+      name: "General Physical Stores",
+      query: `${productName} negozio fisico Italia punto vendita`,
+      channels: ["google_maps"],
       storeTypes: ["generale"],
       priority: 5
     },
     {
-      name: "Major E-commerce",
-      query: `${productName} site:amazon.it OR site:ebay.it OR site:zalando.it OR site:mediaworld.it`,
-      channels: ["firecrawl"],
-      storeTypes: ["e-commerce"],
+      name: "Major Retail Chains",
+      query: `${productName} MediaWorld Unieuro Trony Euronics negozio`,
+      channels: ["google_maps"],
+      storeTypes: ["catena"],
       priority: 5
     },
     {
-      name: "Price Comparison",
-      query: `${productName} prezzo migliore confronto prezzi site:idealo.it OR site:trovaprezzi.it`,
-      channels: ["firecrawl"],
-      storeTypes: ["confronto prezzi"],
+      name: "Local Stores",
+      query: `${productName} negozio locale vendita`,
+      channels: ["google_maps"],
+      storeTypes: ["locale"],
       priority: 4
     }
   ];
@@ -155,8 +153,8 @@ function generateFallbackStrategies(productName: string) {
   if (productLower.includes('materasso') || productLower.includes('mattress') || productLower.includes('letto')) {
     strategies.push({
       name: "Furniture Stores",
-      query: `${productName} materassi arredamento mobili ikea mondo convenienza`,
-      channels: ["firecrawl"],
+      query: `${productName} materassi negozio arredamento ikea mondo convenienza`,
+      channels: ["google_maps"],
       storeTypes: ["arredamento"],
       priority: 5
     });
@@ -165,8 +163,8 @@ function generateFallbackStrategies(productName: string) {
   if (productLower.includes('iphone') || productLower.includes('smartphone') || productLower.includes('telefono')) {
     strategies.push({
       name: "Mobile Stores", 
-      query: `${productName} TIM Vodafone WindTre Iliad negozio telefonia`,
-      channels: ["firecrawl"],
+      query: `${productName} negozio telefonia TIM Vodafone WindTre`,
+      channels: ["google_maps"],
       storeTypes: ["telefonia"],
       priority: 5
     });
@@ -175,8 +173,8 @@ function generateFallbackStrategies(productName: string) {
   if (productLower.includes('cacciavite') || productLower.includes('martello') || productLower.includes('utensili')) {
     strategies.push({
       name: "Hardware Stores",
-      query: `${productName} ferramenta bricolage fai da te leroy merlin brico`,
-      channels: ["firecrawl"],
+      query: `${productName} ferramenta negozio bricolage leroy merlin`,
+      channels: ["google_maps"],
       storeTypes: ["ferramenta"],
       priority: 5
     });

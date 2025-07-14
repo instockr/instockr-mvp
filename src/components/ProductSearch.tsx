@@ -49,7 +49,7 @@ interface OnlineStore {
 }
 
 interface SearchResult {
-  stores: (Store | OnlineStore)[];
+  stores: Store[];
   searchedProduct: string;
   totalResults: number;
 }
@@ -219,67 +219,12 @@ export function ProductSearch() {
         body: { productName: productName.trim() }
       });
 
-      // Step 2: Execute searches across all channels in parallel
-      const searchPromises = [];
-
-      if (strategiesResponse.error) {
-        console.log('Strategy generation failed, using basic search');
-        // Fallback to basic search without strategies
-        const fallbackPromise = supabase.functions.invoke('search-online-stores', {
-          body: { 
-            productName: productName.trim(),
-            strategies: [] // This will trigger fallback mode
-          }
-        });
-        searchPromises.push(fallbackPromise);
-      } else {
-        const { strategies } = strategiesResponse.data;
-        console.log('Generated strategies:', strategies.length);
-
-        // Group strategies by channel
-        const firecrawlQueries = strategies.filter((s: any) => s.channels.includes('firecrawl')).slice(0, 8);
-        const googleShoppingQueries = strategies.filter((s: any) => s.channels.includes('google_shopping')).slice(0, 5);
-
-        // Execute FireCrawl searches
-        if (firecrawlQueries.length > 0) {
-          const firecrawlPromise = supabase.functions.invoke('search-online-stores', {
-            body: { 
-              productName: productName.trim(),
-              strategies: firecrawlQueries
-            }
-          });
-          searchPromises.push(firecrawlPromise);
-        }
-
-        // Execute Google Shopping searches
-        for (const strategy of googleShoppingQueries) {
-          const googleShoppingPromise = supabase.functions.invoke('search-google-shopping', {
-            body: { 
-              query: strategy.query,
-              limit: 5
-            }
-          });
-          searchPromises.push(googleShoppingPromise);
-        }
-      }
-
-      // Execute local store search if location is provided
+      // Get location coordinates for search
+      let locationCoords = null;
       if (location.trim()) {
-        console.log('Searching for stores near:', location);
-        
         try {
-          const coords = await geocodeLocation(location);
-          console.log('Location coordinates:', coords);
-
-          const localStoresPromise = supabase.functions.invoke('search-stores', {
-            body: {
-              productName: productName.trim(),
-              userLat: coords.lat,
-              userLng: coords.lng,
-              radius: 50
-            }
-          });
-          searchPromises.push(localStoresPromise);
+          locationCoords = await geocodeLocation(location);
+          console.log('Location coordinates:', locationCoords);
         } catch (geocodeError) {
           console.error('Geocoding failed:', geocodeError);
           toast({
@@ -290,23 +235,73 @@ export function ProductSearch() {
         }
       }
 
+      // Step 2: Execute searches across all channels in parallel
+      const searchPromises = [];
+
+      if (strategiesResponse.error) {
+        console.log('Strategy generation failed, using basic search');
+        // Fallback to basic database search
+        const fallbackPromise = supabase.functions.invoke('search-stores', {
+          body: {
+            productName: productName.trim(),
+            location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
+            latitude: locationCoords?.lat,
+            longitude: locationCoords?.lng
+          }
+        });
+        searchPromises.push(fallbackPromise);
+      } else {
+        const { strategies } = strategiesResponse.data;
+        console.log('Generated strategies:', strategies.length);
+
+        // Execute searches for each strategy
+        for (const strategy of strategies) {
+          if (strategy.channels.includes('google_maps')) {
+            const searchPromise = supabase.functions.invoke('search-stores', {
+              body: {
+                productName: strategy.query,
+                location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
+                latitude: locationCoords?.lat,
+                longitude: locationCoords?.lng
+              }
+            });
+            searchPromises.push(searchPromise);
+          }
+          
+          if (strategy.channels.includes('firecrawl')) {
+            const firecrawlPromise = supabase.functions.invoke('search-online-stores', {
+              body: { 
+                productName: productName.trim(),
+                strategies: [strategy]
+              }
+            });
+            searchPromises.push(firecrawlPromise);
+          }
+        }
+      }
+
       // Wait for all searches to complete
       console.log('Executing parallel searches across all channels...');
       const allResults = await Promise.all(searchPromises);
       
-      // Step 3: Combine all results
-      const combinedStores: (Store | OnlineStore)[] = [];
+      // Step 3: Combine all results and filter for physical stores only
+      const combinedStores: Store[] = [];
       
       allResults.forEach((result, index) => {
         if (result.data && result.data.stores && Array.isArray(result.data.stores)) {
           console.log(`Result ${index} returned ${result.data.stores.length} stores`);
-          combinedStores.push(...result.data.stores);
+          // Filter out online stores - only include stores with physical locations
+          const physicalStores = result.data.stores.filter((store: any) => 
+            store.latitude && store.longitude && !store.isOnline
+          );
+          combinedStores.push(...physicalStores);
+          console.log(`Filtered to ${physicalStores.length} physical stores from result ${index}`);
         } else if (result.error) {
           console.error(`Search ${index} failed:`, result.error);
         }
       });
 
-      console.log(`Combined ${combinedStores.length} stores from all sources`);
+      console.log(`Combined ${combinedStores.length} physical stores from all sources`);
 
       // Step 4: Unified deduplication across ALL results
       const deduplicationResponse = await supabase.functions.invoke('unified-deduplication', {
@@ -319,21 +314,39 @@ export function ProductSearch() {
         console.log(`Deduplicated to ${finalStores.length} unique stores`);
       }
 
-      // Step 5: Verify top stores with Google Maps
+      // Step 5: Verify ALL stores with Google Maps (required for physical stores)
       if (finalStores.length > 0) {
-        console.log('Verifying stores with Google Maps...');
-        const verificationResponse = await supabase.functions.invoke('verify-store-maps', {
-          body: { 
-            stores: finalStores.slice(0, 10) // Verify top 10 stores
+        console.log('Verifying all stores with Google Maps...');
+        const verifiedStores = [];
+        
+        // Process stores in batches to avoid overwhelming the API
+        for (let i = 0; i < finalStores.length; i += 5) {
+          const batch = finalStores.slice(i, i + 5);
+          try {
+            for (const store of batch) {
+              const verificationResponse = await supabase.functions.invoke('verify-store-maps', {
+                body: { 
+                  storeName: (store as any).store?.name || (store as any).name,
+                  address: (store as any).store?.address || (store as any).address,
+                  latitude: (store as any).store?.latitude || (store as any).latitude,
+                  longitude: (store as any).store?.longitude || (store as any).longitude
+                }
+              });
+              
+              if (verificationResponse.data?.verified) {
+                verifiedStores.push({
+                  ...store,
+                  verification: verificationResponse.data
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Error verifying batch:', error);
           }
-        });
-
-        if (verificationResponse.data && verificationResponse.data.stores) {
-          finalStores = [
-            ...verificationResponse.data.stores,
-            ...finalStores.slice(10) // Add remaining unverified stores
-          ];
         }
+        
+        finalStores = verifiedStores;
+        console.log(`Google Maps verified ${finalStores.length} stores`);
       }
 
       setResults({
@@ -387,12 +400,12 @@ export function ProductSearch() {
         </div>
         <div className="max-w-2xl mx-auto">
           <p className="text-lg text-muted-foreground/80 mb-4">
-            Discover products instantly across local stores
+            Find products in physical stores near you
           </p>
           <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              Real-time inventory
+              Google Maps verified
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-blue-500"></div>
@@ -400,7 +413,7 @@ export function ProductSearch() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-              Online & local stores
+              AI-powered search
             </div>
           </div>
         </div>
@@ -513,7 +526,7 @@ export function ProductSearch() {
           ) : (
             <div className="grid gap-4">
               {results.stores.filter(result => result != null).map((result, index) => {
-                // EXTREME safety check - skip if result is null or undefined
+                // Safety check - skip if result is null or undefined
                 if (!result) {
                   console.error('Found null result in filtered array at index:', index);
                   return null;
@@ -521,33 +534,26 @@ export function ProductSearch() {
                 
                 console.log('Processing result:', index, result);
                 
-                const isOnline = 'isOnline' in result && result.isOnline;
-                const onlineResult = isOnline ? result as OnlineStore : null;
-                const localResult = !isOnline ? result as Store : null;
+                // Check if we have proper store data
+                const hasLocalStructure = 'store' in result && result.store?.name;
+                const hasDirectStructure = 'name' in result && result.name;
                 
-                // Additional safety checks for required properties
-                if (isOnline) {
-                  if (!onlineResult || !onlineResult.name || !onlineResult.product) {
-                    console.error('Invalid online store data:', onlineResult);
-                    return null;
-                  }
-                 } else {
-                   // This could be either a proper local store OR an online store structure marked as physical
-                   const hasLocalStructure = localResult && 'store' in localResult && localResult.store?.name;
-                   const hasOnlineStructure = result && 'name' in result && result.name;
-                   
-                   if (!hasLocalStructure && !hasOnlineStructure) {
-                     console.error('Invalid store data - neither local nor online structure:', result);
-                     return null;
-                   }
-                   
-                   if (!result.product?.name) {
-                     console.error('Invalid store data - missing product name:', result);
-                     return null;
-                   }
-                 }
+                if (!hasLocalStructure && !hasDirectStructure) {
+                  console.error('Invalid store data - missing required fields:', result);
+                  return null;
+                }
+                
+                if (!result.product?.name) {
+                  console.error('Invalid store data - missing product name:', result);
+                  return null;
+                }
                 
                 console.log('Store passed validation, rendering card...');
+                
+                const storeName = (result as any).store?.name || (result as any).name || 'Unknown Store';
+                const storeAddress = (result as any).store?.address || (result as any).address || 'Address not available';
+                const storePhone = (result as any).store?.phone;
+                const distance = (result as any).distance;
                 
                 return (
                   <Card key={index} className="hover:shadow-lg transition-shadow">
@@ -558,7 +564,7 @@ export function ProductSearch() {
                              {(result as any).verification?.photoUrl ? (
                                <img 
                                  src={(result as any).verification.photoUrl} 
-                                 alt={`${isOnline ? onlineResult?.name : (localResult?.store?.name || (result as OnlineStore).name)} storefront`}
+                                 alt={`${storeName} storefront`}
                                  className="w-full h-full object-cover"
                                  onError={(e) => {
                                    const target = e.currentTarget as HTMLImageElement;
@@ -577,56 +583,41 @@ export function ProductSearch() {
 
                           {/* CENTER: Store Information */}
                           <div className="flex-1">
-                            {/* Store name and label on first row */}
+                            {/* Store name on first row */}
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-xl font-semibold">
-                                {isOnline ? onlineResult?.name || 'Unknown Store' : (localResult?.store?.name || (result as any).name || 'Unknown Store')}
-                              </h3>
-                              {isOnline ? (
-                                <Badge variant="secondary" className="flex items-center gap-1">
-                                  <Globe className="h-3 w-3" />
-                                  Online Store
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary" className="flex items-center gap-1">
-                                  <Store className="h-3 w-3" />
-                                  Local Store
-                                </Badge>
-                              )}
+                              <h3 className="text-xl font-semibold">{storeName}</h3>
                             </div>
                             
                             {/* Selling product subtitle on second row */}
                             <p className="text-sm text-muted-foreground mb-2">
-                              Selling {isOnline ? onlineResult?.product?.name || 'Unknown Product' : (localResult?.product?.name || (result as any).product?.name || 'Unknown Product')}
+                              Selling {result.product.name}
                             </p>
                             
                             {/* Location */}
                             <div className="flex items-center gap-2 mb-2">
                               <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground">
-                                {isOnline ? onlineResult?.address || 'Address not available' : (localResult?.store?.address || (result as any).address || 'Address not available')}
-                              </span>
+                              <span className="text-sm text-muted-foreground">{storeAddress}</span>
                             </div>
                             
                             {/* Distance (if available) */}
-                            {!isOnline && localResult?.distance && (
+                            {distance && (
                               <div className="flex items-center gap-2 mb-2">
                                 <span className="text-sm text-muted-foreground ml-6">
-                                  {localResult.distance.toFixed(1)} km away
+                                  {distance.toFixed(1)} km away
                                 </span>
                               </div>
                             )}
                             
                             {/* Phone (if available) */}
-                            {!isOnline && localResult?.store?.phone && (
+                            {storePhone && (
                               <div className="flex items-center gap-2 mb-2">
                                 <Phone className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">{localResult.store.phone}</span>
+                                <span className="text-sm text-muted-foreground">{storePhone}</span>
                               </div>
                             )}
                             
                             {/* Verification badge */}
-                            {!isOnline && (result as any).verification && (
+                            {(result as any).verification && (
                               <div className="flex items-center gap-2">
                                 {(result as any).verification.verified ? (
                                   <>
@@ -647,7 +638,7 @@ export function ProductSearch() {
                           <div className="flex flex-col justify-between items-end min-w-[120px]">
                             {/* Open Now tag at the top */}
                             <div>
-                              {!isOnline && (result as any).verification && typeof (result as any).verification.isOpen === 'boolean' && (
+                              {(result as any).verification && typeof (result as any).verification.isOpen === 'boolean' && (
                                 <Badge 
                                   variant="outline" 
                                   className={`${(result as any).verification.isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
@@ -660,19 +651,7 @@ export function ProductSearch() {
                             
                             {/* Visit Website button centered vertically */}
                             <div className="flex-1 flex items-center">
-                              {isOnline && onlineResult?.url && (
-                                <Button variant="default" size="sm" asChild>
-                                  <a 
-                                    href={onlineResult.url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2"
-                                  >
-                                    Visit Website <ExternalLink className="h-4 w-4" />
-                                  </a>
-                                </Button>
-                              )}
-                              {!isOnline && (result as any).verification?.website && (
+                              {(result as any).verification?.website && (
                                 <Button variant="default" size="sm" asChild>
                                   <a 
                                     href={(result as any).verification.website} 
