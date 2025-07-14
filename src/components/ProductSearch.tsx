@@ -675,12 +675,39 @@ export function ProductSearch() {
                                  </Badge>
                                )}
                              </div>
-                             <Badge 
-                               variant="outline" 
-                               className={getStoreTypeColor(isOnline ? onlineResult?.store_type || 'other' : (localResult?.store?.store_type || (result as any).store_type || 'other'))}
-                             >
-                               {isOnline ? onlineResult?.store_type || 'other' : (localResult?.store?.store_type || (result as any).store_type || 'other')}
-                             </Badge>
+                             <div className="flex flex-col items-end gap-2">
+                               <Badge 
+                                 variant="outline" 
+                                 className={getStoreTypeColor(isOnline ? onlineResult?.store_type || 'other' : (localResult?.store?.store_type || (result as any).store_type || 'other'))}
+                               >
+                                 {isOnline ? onlineResult?.store_type || 'other' : (localResult?.store?.store_type || (result as any).store_type || 'other')}
+                               </Badge>
+                               {/* Website button positioned under the retail badge */}
+                               {isOnline && onlineResult?.url && (
+                                 <Button variant="default" size="sm" asChild>
+                                   <a 
+                                     href={onlineResult.url} 
+                                     target="_blank" 
+                                     rel="noopener noreferrer"
+                                     className="flex items-center gap-2"
+                                   >
+                                     Visit Website <ExternalLink className="h-4 w-4" />
+                                   </a>
+                                 </Button>
+                               )}
+                               {!isOnline && (result as any).verification?.website && (
+                                 <Button variant="default" size="sm" asChild>
+                                   <a 
+                                     href={(result as any).verification.website} 
+                                     target="_blank" 
+                                     rel="noopener noreferrer"
+                                     className="flex items-center gap-2"
+                                   >
+                                     Visit Website <ExternalLink className="h-4 w-4" />
+                                   </a>
+                                 </Button>
+                               )}
+                             </div>
                            </div>
                            <p className="text-sm text-muted-foreground mb-2">
                              Selling {isOnline ? onlineResult?.product?.name || 'Unknown Product' : (localResult?.product?.name || (result as any).product?.name || 'Unknown Product')}
@@ -728,32 +755,9 @@ export function ProductSearch() {
                              )}
                            </div>
                           
-                           <div className="flex items-center gap-3">
-                             {isOnline && onlineResult?.url && (
-                               <Button variant="default" size="sm" asChild>
-                                 <a 
-                                   href={onlineResult.url} 
-                                   target="_blank" 
-                                   rel="noopener noreferrer"
-                                   className="flex items-center gap-2"
-                                 >
-                                   Visit Website <ExternalLink className="h-4 w-4" />
-                                 </a>
-                               </Button>
-                             )}
-                             {!isOnline && (result as any).verification?.website && (
-                               <Button variant="default" size="sm" asChild>
-                                 <a 
-                                   href={(result as any).verification.website} 
-                                   target="_blank" 
-                                   rel="noopener noreferrer"
-                                   className="flex items-center gap-2"
-                                 >
-                                   Visit Website <ExternalLink className="h-4 w-4" />
-                                 </a>
-                               </Button>
-                             )}
-                           </div>
+                            <div className="flex items-center gap-3">
+                              {/* Empty div for potential future actions */}
+                            </div>
                         </div>
                       </div>
                     </CardContent>
