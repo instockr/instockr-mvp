@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, MapPin, Loader2, Globe, Store, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, MapPin, Loader2, Globe, Store, ExternalLink, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,11 +57,43 @@ interface SearchResult {
 export function ProductSearch() {
   const [productName, setProductName] = useState("");
   const [location, setLocation] = useState("");
+  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [results, setResults] = useState<SearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [includeOnline, setIncludeOnline] = useState(true);
   const { toast } = useToast();
+
+  // Popular cities for quick suggestions
+  const popularCities = [
+    "New York, NY", "Los Angeles, CA", "Chicago, IL", "Houston, TX", "Phoenix, AZ",
+    "Philadelphia, PA", "San Antonio, TX", "San Diego, CA", "Dallas, TX", "San Jose, CA",
+    "Austin, TX", "Jacksonville, FL", "Fort Worth, TX", "Columbus, OH", "Charlotte, NC",
+    "San Francisco, CA", "Indianapolis, IN", "Seattle, WA", "Denver, CO", "Washington, DC",
+    "Boston, MA", "El Paso, TX", "Nashville, TN", "Detroit, MI", "Oklahoma City, OK",
+    "Portland, OR", "Las Vegas, NV", "Memphis, TN", "Louisville, KY", "Baltimore, MD",
+    "Milan, Italy", "Paris, France", "London, UK", "Berlin, Germany", "Madrid, Spain",
+    "Rome, Italy", "Amsterdam, Netherlands", "Barcelona, Spain", "Vienna, Austria"
+  ];
+
+  useEffect(() => {
+    if (location.length > 2) {
+      const filtered = popularCities.filter(city => 
+        city.toLowerCase().includes(location.toLowerCase())
+      ).slice(0, 8);
+      setLocationSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [location]);
+
+  const handleLocationSelect = (selectedLocation: string) => {
+    setLocation(selectedLocation);
+    setShowSuggestions(false);
+  };
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -75,14 +107,33 @@ export function ProductSearch() {
 
     setIsGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
-        setLocation(`${latitude}, ${longitude}`);
-        setIsGettingLocation(false);
-        toast({
-          title: "Location found",
-          description: "Using your current location for search",
-        });
+        
+        // Reverse geocode to get city name
+        try {
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          const data = await response.json();
+          const cityName = data.city && data.countryName ? 
+            `${data.city}, ${data.countryName}` : 
+            `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          
+          setLocation(cityName);
+          setIsGettingLocation(false);
+          toast({
+            title: "Location found",
+            description: `Using ${cityName} for search`,
+          });
+        } catch (error) {
+          setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          setIsGettingLocation(false);
+          toast({
+            title: "Location found",
+            description: "Using your current coordinates for search",
+          });
+        }
       },
       (error) => {
         console.error("Geolocation error:", error);
@@ -96,8 +147,8 @@ export function ProductSearch() {
     );
   };
 
-  const parseLocation = (locationStr: string) => {
-    // Try to parse coordinates first (lat, lng format)
+  const geocodeLocation = async (locationStr: string) => {
+    // Check if it's already coordinates (lat, lng format)
     const coordMatch = locationStr.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
     if (coordMatch) {
       return {
@@ -106,11 +157,28 @@ export function ProductSearch() {
       };
     }
     
-    // For demo purposes, return NYC coordinates if parsing fails
-    // In a real app, you'd use a geocoding service here
+    // Use a free geocoding service to convert city name to coordinates
+    try {
+      const response = await fetch(
+        `https://api.bigdatacloud.net/data/geocode-client?query=${encodeURIComponent(locationStr)}&localityLanguage=en`
+      );
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        return {
+          lat: data.results[0].latitude,
+          lng: data.results[0].longitude
+        };
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
+    
+    // Fallback to NYC coordinates
     toast({
-      title: "Using default location",
-      description: "Using New York City coordinates for demo. Use GPS button for accurate location.",
+      title: "Location not found",
+      description: "Using default location. Please try a more specific city name.",
+      variant: "destructive",
     });
     return { lat: 40.7128, lng: -74.0060 };
   };
@@ -138,7 +206,7 @@ export function ProductSearch() {
     setResults(null);
 
     try {
-      const { lat, lng } = parseLocation(location);
+      const { lat, lng } = await geocodeLocation(location);
       const searchPromises = [];
 
       // Always search local stores
@@ -276,19 +344,37 @@ export function ProductSearch() {
             />
           </div>
           
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <label htmlFor="location" className="text-sm font-medium flex items-center gap-2">
               <MapPin className="h-4 w-4" />
               Your Location
             </label>
             <div className="flex gap-2">
-              <Input
-                id="location"
-                placeholder="Enter address or coordinates (lat, lng)"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              />
+              <div className="relative flex-1">
+                <Input
+                  id="location"
+                  placeholder="Enter city name (e.g., Milan, New York, Paris)"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  onFocus={() => location.length > 2 && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                />
+                {showSuggestions && locationSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+                    {locationSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        className="w-full px-3 py-2 text-left hover:bg-gray-100 border-b border-gray-100 last:border-b-0 flex items-center gap-2"
+                        onClick={() => handleLocationSelect(suggestion)}
+                      >
+                        <MapPin className="h-3 w-3 text-gray-400" />
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Button
                 variant="outline"
                 size="icon"
