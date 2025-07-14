@@ -40,10 +40,11 @@ serve(async (req) => {
 
     console.log('Searching online stores for:', productName);
 
-    // Physical store chains to search for location data
+    // Milan-based store chains and Italian retailers
     const storeChains = [
-      { name: 'IKEA', searchUrl: 'https://www.ikea.com/us/en/search/products/?q=' },
-      { name: 'Target', searchUrl: 'https://www.target.com/s?searchTerm=' }
+      { name: 'IKEA Milano', searchUrl: 'https://www.ikea.com/it/it/search/products/?q=' },
+      { name: 'Unieuro Milano', searchUrl: 'https://www.unieuro.it/online/cerca?text=' },
+      { name: 'MediaWorld Milano', searchUrl: 'https://www.mediaworld.it/mw/search?q=' }
     ];
 
     const onlineResults = [];
@@ -81,7 +82,8 @@ serve(async (req) => {
                             name: { type: "string" },
                             price: { type: "string" },
                             availability: { type: "string" },
-                            store_locations: { type: "string" },
+                            milan_stores: { type: "string" },
+                            store_location_milan: { type: "string" },
                             in_stock: { type: "boolean" }
                           }
                         }
@@ -109,7 +111,7 @@ serve(async (req) => {
                       id: `online-${store.name.toLowerCase()}-${Date.now()}-${index}`,
                       name: store.name,
                       store_type: 'department',
-                      address: `${store.name} - Check store locator`,
+                      address: `${store.name} - Milan location`,
                       distance: null,
                       latitude: null,
                       longitude: null,
@@ -117,7 +119,7 @@ serve(async (req) => {
                       product: {
                         name: product.name || productName,
                         price: product.price || 'Price varies by location',
-                        description: `Available at ${store.name} locations`,
+                        description: `Available at ${store.name} in Milan`,
                         availability: product.availability || (product.in_stock ? 'In Stock' : 'Check local stores')
                       },
                       url: searchUrl,
