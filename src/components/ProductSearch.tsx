@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, MapPin, Loader2, Globe, Store, ExternalLink, ChevronDown, Phone, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Search, MapPin, Loader2, Globe, Store, ExternalLink, ChevronDown, Phone, Clock, CheckCircle, XCircle, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -655,7 +655,8 @@ const geocodeLocation = async (locationStr: string) => {
                             <div className="flex items-center gap-2 mb-2">
                               <h3 className="text-xl font-semibold">{storeName}</h3>
                               {result.product.name && (
-                                <Badge variant="outline" className="text-xs px-2 py-1 bg-primary/10 text-primary border-primary/20">
+                                <Badge variant="outline" className="text-xs px-2 py-1 bg-primary/10 text-primary border-primary/20 flex items-center gap-1">
+                                  <Tag className="h-3 w-3" />
                                   {result.product.name}
                                 </Badge>
                               )}
