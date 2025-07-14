@@ -16,9 +16,16 @@ serve(async (req) => {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
     if (!openAIApiKey) {
+      console.log('OpenAI API key not configured, using fallback strategies');
+      // Fallback to basic strategies when OpenAI is not available
+      const fallbackStrategies = generateFallbackStrategies(productName);
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          strategies: fallbackStrategies,
+          productName: productName,
+          fallback: true
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -101,9 +108,78 @@ Generate 8-12 diverse strategies covering different angles.`
 
   } catch (error) {
     console.error('Error in generate-search-strategies function:', error);
+    
+    // Fallback to basic strategies if OpenAI fails
+    console.log('OpenAI failed, using fallback strategies');
+    const fallbackStrategies = generateFallbackStrategies(productName);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        strategies: fallbackStrategies,
+        productName: productName,
+        fallback: true
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
+
+// Fallback strategy generator when OpenAI is not available
+function generateFallbackStrategies(productName: string) {
+  const productLower = productName.toLowerCase();
+  
+  const strategies = [
+    {
+      name: "General Italian Search",
+      query: `${productName} negozio Italia comprare vendita online`,
+      channels: ["firecrawl"],
+      storeTypes: ["generale"],
+      priority: 5
+    },
+    {
+      name: "Major E-commerce",
+      query: `${productName} site:amazon.it OR site:ebay.it OR site:zalando.it OR site:mediaworld.it`,
+      channels: ["firecrawl"],
+      storeTypes: ["e-commerce"],
+      priority: 5
+    },
+    {
+      name: "Price Comparison",
+      query: `${productName} prezzo migliore confronto prezzi site:idealo.it OR site:trovaprezzi.it`,
+      channels: ["firecrawl"],
+      storeTypes: ["confronto prezzi"],
+      priority: 4
+    }
+  ];
+
+  // Add product-specific strategies
+  if (productLower.includes('materasso') || productLower.includes('mattress') || productLower.includes('letto')) {
+    strategies.push({
+      name: "Furniture Stores",
+      query: `${productName} materassi arredamento mobili ikea mondo convenienza`,
+      channels: ["firecrawl"],
+      storeTypes: ["arredamento"],
+      priority: 5
+    });
+  }
+  
+  if (productLower.includes('iphone') || productLower.includes('smartphone') || productLower.includes('telefono')) {
+    strategies.push({
+      name: "Mobile Stores", 
+      query: `${productName} TIM Vodafone WindTre Iliad negozio telefonia`,
+      channels: ["firecrawl"],
+      storeTypes: ["telefonia"],
+      priority: 5
+    });
+  }
+
+  if (productLower.includes('cacciavite') || productLower.includes('martello') || productLower.includes('utensili')) {
+    strategies.push({
+      name: "Hardware Stores",
+      query: `${productName} ferramenta bricolage fai da te leroy merlin brico`,
+      channels: ["firecrawl"],
+      storeTypes: ["ferramenta"],
+      priority: 5
+    });
+  }
+
+  return strategies;

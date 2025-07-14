@@ -219,40 +219,48 @@ export function ProductSearch() {
         body: { productName: productName.trim() }
       });
 
-      if (strategiesResponse.error) {
-        throw new Error('Failed to generate search strategies');
-      }
-
-      const { strategies } = strategiesResponse.data;
-      console.log('Generated strategies:', strategies.length);
-
       // Step 2: Execute searches across all channels in parallel
       const searchPromises = [];
 
-      // Group strategies by channel
-      const firecrawlQueries = strategies.filter((s: any) => s.channels.includes('firecrawl')).slice(0, 8);
-      const googleShoppingQueries = strategies.filter((s: any) => s.channels.includes('google_shopping')).slice(0, 5);
-
-      // Execute FireCrawl searches
-      if (firecrawlQueries.length > 0) {
-        const firecrawlPromise = supabase.functions.invoke('search-online-stores', {
+      if (strategiesResponse.error) {
+        console.log('Strategy generation failed, using basic search');
+        // Fallback to basic search without strategies
+        const fallbackPromise = supabase.functions.invoke('search-online-stores', {
           body: { 
             productName: productName.trim(),
-            strategies: firecrawlQueries
+            strategies: [] // This will trigger fallback mode
           }
         });
-        searchPromises.push(firecrawlPromise);
-      }
+        searchPromises.push(fallbackPromise);
+      } else {
+        const { strategies } = strategiesResponse.data;
+        console.log('Generated strategies:', strategies.length);
 
-      // Execute Google Shopping searches
-      for (const strategy of googleShoppingQueries) {
-        const googleShoppingPromise = supabase.functions.invoke('search-google-shopping', {
-          body: { 
-            query: strategy.query,
-            limit: 5
-          }
-        });
-        searchPromises.push(googleShoppingPromise);
+        // Group strategies by channel
+        const firecrawlQueries = strategies.filter((s: any) => s.channels.includes('firecrawl')).slice(0, 8);
+        const googleShoppingQueries = strategies.filter((s: any) => s.channels.includes('google_shopping')).slice(0, 5);
+
+        // Execute FireCrawl searches
+        if (firecrawlQueries.length > 0) {
+          const firecrawlPromise = supabase.functions.invoke('search-online-stores', {
+            body: { 
+              productName: productName.trim(),
+              strategies: firecrawlQueries
+            }
+          });
+          searchPromises.push(firecrawlPromise);
+        }
+
+        // Execute Google Shopping searches
+        for (const strategy of googleShoppingQueries) {
+          const googleShoppingPromise = supabase.functions.invoke('search-google-shopping', {
+            body: { 
+              query: strategy.query,
+              limit: 5
+            }
+          });
+          searchPromises.push(googleShoppingPromise);
+        }
       }
 
       // Execute local store search if location is provided
