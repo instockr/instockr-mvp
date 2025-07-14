@@ -200,21 +200,10 @@ export function ProductSearch() {
   };
 
   const handleSearch = async () => {
-    console.log('Search started with:', { productName, location });
-    
     if (!productName.trim()) {
       toast({
-        title: "Product name required",
-        description: "Please enter a product name to search",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!location.trim()) {
-      toast({
-        title: "Location required",
-        description: "Please enter your location or use GPS",
+        title: "Error",
+        description: "Please enter a product name",
         variant: "destructive",
       });
       return;
@@ -224,218 +213,140 @@ export function ProductSearch() {
     setResults(null);
 
     try {
-      console.log('Geocoding location:', location);
-      const { lat, lng } = await geocodeLocation(location);
-      console.log('Geocoded coordinates:', { lat, lng });
-      
+      // Step 1: Generate LLM-powered search strategies
+      console.log('Generating search strategies...');
+      const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
+        body: { productName: productName.trim() }
+      });
+
+      if (strategiesResponse.error) {
+        throw new Error('Failed to generate search strategies');
+      }
+
+      const { strategies } = strategiesResponse.data;
+      console.log('Generated strategies:', strategies.length);
+
+      // Step 2: Execute searches across all channels in parallel
       const searchPromises = [];
 
-      // Always search local stores
-      console.log('Starting local search...');
-      const localSearchPromise = supabase.functions.invoke('search-stores', {
-        body: {
-          productName: productName.trim(),
-          userLat: lat,
-          userLng: lng,
-          radius: 50 // 50km radius
-        }
-      });
-      searchPromises.push(localSearchPromise);
+      // Group strategies by channel
+      const firecrawlQueries = strategies.filter((s: any) => s.channels.includes('firecrawl')).slice(0, 8);
+      const googleShoppingQueries = strategies.filter((s: any) => s.channels.includes('google_shopping')).slice(0, 5);
 
-      // Always search online stores for additional location data
-      console.log('Starting online search...');
-      const onlineSearchPromise = supabase.functions.invoke('search-online-stores', {
-        body: {
-          productName: productName.trim()
-        }
-      });
-      searchPromises.push(onlineSearchPromise);
-
-      console.log('Waiting for search results...');
-      const searchResults = await Promise.allSettled(searchPromises);
-      console.log('Search results received:', searchResults);
-      
-      let allStores: (Store | OnlineStore)[] = [];
-      let totalFound = 0;
-
-      // Process local results
-      const localResult = searchResults[0];
-      console.log('Local result:', localResult);
-      if (localResult.status === 'fulfilled' && localResult.value.data?.stores) {
-        allStores = [...allStores, ...localResult.value.data.stores];
-        totalFound += localResult.value.data.stores.length;
-        console.log('Added local stores:', localResult.value.data.stores.length);
-      } else if (localResult.status === 'rejected') {
-        console.error('Local search failed:', localResult.reason);
+      // Execute FireCrawl searches
+      if (firecrawlQueries.length > 0) {
+        const firecrawlPromise = supabase.functions.invoke('search-online-stores', {
+          body: { 
+            productName: productName.trim(),
+            strategies: firecrawlQueries
+          }
+        });
+        searchPromises.push(firecrawlPromise);
       }
 
-      // Process online results
-      const onlineResult = searchResults[1];
-      console.log('Online result:', onlineResult);
-      if (onlineResult.status === 'fulfilled' && onlineResult.value.data?.stores) {
-        allStores = [...allStores, ...onlineResult.value.data.stores];
-        totalFound += onlineResult.value.data.stores.length;
-        console.log('Added online stores:', onlineResult.value.data.stores.length);
-      } else if (onlineResult.status === 'rejected') {
-        console.error('Online search failed:', onlineResult.reason);
+      // Execute Google Shopping searches
+      for (const strategy of googleShoppingQueries) {
+        const googleShoppingPromise = supabase.functions.invoke('search-google-shopping', {
+          body: { 
+            query: strategy.query,
+            limit: 5
+          }
+        });
+        searchPromises.push(googleShoppingPromise);
       }
 
-      console.log('Final results before deduplication:', { totalFound, allStores: allStores.filter(s => s != null) });
-      
-      // Deduplicate stores using AI if we have results
-      if (allStores.length > 1) {
-        console.log('Starting deduplication process...');
+      // Execute local store search if location is provided
+      if (location.trim()) {
+        console.log('Searching for stores near:', location);
+        
         try {
-          const deduplicationResponse = await supabase.functions.invoke('deduplicate-stores', {
-            body: { stores: allStores }
+          const coords = await geocodeLocation(location);
+          console.log('Location coordinates:', coords);
+
+          const localStoresPromise = supabase.functions.invoke('search-stores', {
+            body: {
+              productName: productName.trim(),
+              userLat: coords.lat,
+              userLng: coords.lng,
+              radius: 50
+            }
           });
-          
-          if (deduplicationResponse.data?.deduplicatedStores) {
-            console.log('Deduplication successful:', deduplicationResponse.data);
-            allStores = deduplicationResponse.data.deduplicatedStores;
-            totalFound = allStores.length;
-            
-            // Results consolidated silently - no need to notify user
-          }
-        } catch (deduplicationError) {
-          console.error('Deduplication failed, using original results:', deduplicationError);
-          // Continue with original results if deduplication fails
+          searchPromises.push(localStoresPromise);
+        } catch (geocodeError) {
+          console.error('Geocoding failed:', geocodeError);
+          toast({
+            title: "Location Warning",
+            description: "Could not find exact location, searching without location filter",
+            variant: "default",
+          });
         }
       }
 
-      // Verify ALL stores with Google Maps to determine if they're physical or online
-      if (allStores.length > 0) {
-        console.log('Starting Google Maps verification...');
-        try {
-          const verifiedStores = await Promise.all(
-            allStores.map(async (store: Store | OnlineStore) => {
-              // Safety check - skip if store is null or undefined
-              if (!store) {
-                console.warn('Skipping undefined store during verification');
-                return null;
-              }
-              
-              // Try to verify every store with Google Maps
-              try {
-                let storeName, storeAddress, latitude, longitude;
-                
-                if ('store' in store) {
-                  // Local store format
-                  storeName = store.store.name;
-                  storeAddress = store.store.address;
-                  latitude = store.store.latitude;
-                  longitude = store.store.longitude;
-                } else {
-                  // Online store format
-                  storeName = store.name;
-                  storeAddress = store.address;
-                  latitude = store.latitude;
-                  longitude = store.longitude;
-                }
-                
-                const { data: verification } = await supabase.functions.invoke('verify-store-maps', {
-                  body: {
-                    storeName,
-                    address: storeAddress,
-                    latitude,
-                    longitude
-                  }
-                });
-                
-                if (verification?.verified) {
-                  // Found on Google Maps - mark as physical store
-                  return {
-                    ...store,
-                    isOnline: false,
-                    verification: verification
-                  };
-                } else {
-                  // Not found on Google Maps - keep as online store
-                  return {
-                    ...store,
-                    isOnline: true,
-                    verification: { verified: false }
-                  };
-                }
-              } catch (error) {
-                console.error('Error verifying store:', error);
-                return {
-                  ...store,
-                  isOnline: true, // Default to online if verification fails
-                  verification: { verified: false }
-                };
-              }
-            })
-          );
-          
-          // Filter out any null/undefined results
-          allStores = verifiedStores.filter(store => store !== null && store !== undefined);
-        } catch (verificationError) {
-          console.error('Store verification failed, using original results:', verificationError);
+      // Wait for all searches to complete
+      console.log('Executing parallel searches across all channels...');
+      const allResults = await Promise.all(searchPromises);
+      
+      // Step 3: Combine all results
+      const combinedStores: (Store | OnlineStore)[] = [];
+      
+      allResults.forEach((result, index) => {
+        if (result.data && result.data.stores && Array.isArray(result.data.stores)) {
+          console.log(`Result ${index} returned ${result.data.stores.length} stores`);
+          combinedStores.push(...result.data.stores);
+        } else if (result.error) {
+          console.error(`Search ${index} failed:`, result.error);
         }
-      }
-
-      // Final safety check - ensure all stores in the final results are valid
-      const validStores = allStores.filter(store => {
-        if (!store) {
-          console.warn('Filtering out null/undefined store');
-          return false;
-        }
-        
-        // Check if the store has basic required properties
-        if ('store' in store) {
-          // Local store format
-          if (!store.store?.name || !store.product?.name) {
-            console.warn('Filtering out invalid local store:', store);
-            return false;
-          }
-        } else {
-          // Online store format
-          if (!store.name || !store.product?.name) {
-            console.warn('Filtering out invalid online store:', store);
-            return false;
-          }
-        }
-        
-        return true;
       });
 
-      console.log(`Filtered ${allStores.length} stores down to ${validStores.length} valid stores`);
-      console.log('Final valid stores being set in results:', validStores);
+      console.log(`Combined ${combinedStores.length} stores from all sources`);
+
+      // Step 4: Unified deduplication across ALL results
+      const deduplicationResponse = await supabase.functions.invoke('unified-deduplication', {
+        body: { stores: combinedStores }
+      });
+
+      let finalStores = combinedStores;
+      if (deduplicationResponse.data && deduplicationResponse.data.stores) {
+        finalStores = deduplicationResponse.data.stores;
+        console.log(`Deduplicated to ${finalStores.length} unique stores`);
+      }
+
+      // Step 5: Verify top stores with Google Maps
+      if (finalStores.length > 0) {
+        console.log('Verifying stores with Google Maps...');
+        const verificationResponse = await supabase.functions.invoke('verify-store-maps', {
+          body: { 
+            stores: finalStores.slice(0, 10) // Verify top 10 stores
+          }
+        });
+
+        if (verificationResponse.data && verificationResponse.data.stores) {
+          finalStores = [
+            ...verificationResponse.data.stores,
+            ...finalStores.slice(10) // Add remaining unverified stores
+          ];
+        }
+      }
 
       setResults({
-        stores: validStores,
-        searchedProduct: productName.trim(),
-        totalResults: validStores.length
+        stores: finalStores,
+        searchedProduct: productName,
+        totalResults: finalStores.length
       });
-      
-      console.log('Results state has been set:', {
-        storeCount: validStores.length,
-        searchedProduct: productName.trim(),
-        totalResults: validStores.length
+
+      toast({
+        title: "Search Complete",
+        description: `Found ${finalStores.length} stores across all channels`,
       });
-      
-      if (totalFound === 0) {
-        toast({
-          title: "No results found",
-          description: `No stores found with "${productName}" in stock`,
-        });
-      } else {
-        toast({
-          title: "Search completed",
-          description: `Found ${totalFound} unique result(s) for "${productName}"`,
-        });
-      }
+
     } catch (error) {
       console.error('Search error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unable to search for stores. Please try again.';
       toast({
-        title: "Search failed",
-        description: errorMessage,
+        title: "Search Error",
+        description: "An error occurred while searching. Please try again.",
         variant: "destructive",
       });
     } finally {
-      console.log('Search completed, setting loading to false');
       setIsLoading(false);
     }
   };
