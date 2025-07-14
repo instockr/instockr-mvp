@@ -632,9 +632,9 @@ export function ProductSearch() {
                 
                 return (
                   <Card key={index} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="pt-6">
-                        <div className="flex items-start gap-4">
-                          {/* Store Image */}
+                     <CardContent className="pt-6">
+                        <div className="flex gap-4">
+                          {/* LEFT SIDE: Image (full height) */}
                           <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                              {(result as any).verification?.photoUrl ? (
                                <img 
@@ -655,114 +655,120 @@ export function ProductSearch() {
                                <Store className="h-8 w-8 text-muted-foreground" />
                              </div>
                           </div>
-                        
-                         <div className="flex-1">
-                           <div className="flex justify-between items-start">
-                             <div className="flex items-center gap-2">
-                               <h3 className="text-xl font-semibold">
-                                 {isOnline ? onlineResult?.name || 'Unknown Store' : (localResult?.store?.name || (result as any).name || 'Unknown Store')}
-                               </h3>
-                               {/* Store type badge next to name */}
-                               {isOnline ? (
-                                 <Badge variant="secondary" className="flex items-center gap-1">
-                                   <Globe className="h-3 w-3" />
-                                   Online Store
-                                 </Badge>
-                               ) : (
-                                 <Badge variant="secondary" className="flex items-center gap-1">
-                                   <Store className="h-3 w-3" />
-                                   Local Store
-                                 </Badge>
-                               )}
-                             </div>
-                             <div className="flex flex-col items-end gap-2">
-                               <Badge 
-                                 variant="outline" 
-                                 className={getStoreTypeColor(isOnline ? onlineResult?.store_type || 'other' : (localResult?.store?.store_type || (result as any).store_type || 'other'))}
-                               >
-                                 {isOnline ? onlineResult?.store_type || 'other' : (localResult?.store?.store_type || (result as any).store_type || 'other')}
-                               </Badge>
-                               {/* Website button positioned under the retail badge with some spacing */}
-                               <div className="mt-3">
-                                 {isOnline && onlineResult?.url && (
-                                   <Button variant="default" size="sm" asChild>
-                                     <a 
-                                       href={onlineResult.url} 
-                                       target="_blank" 
-                                       rel="noopener noreferrer"
-                                       className="flex items-center gap-2"
-                                     >
-                                       Visit Website <ExternalLink className="h-4 w-4" />
-                                     </a>
-                                   </Button>
-                                 )}
-                                 {!isOnline && (result as any).verification?.website && (
-                                   <Button variant="default" size="sm" asChild>
-                                     <a 
-                                       href={(result as any).verification.website} 
-                                       target="_blank" 
-                                       rel="noopener noreferrer"
-                                       className="flex items-center gap-2"
-                                     >
-                                       Visit Website <ExternalLink className="h-4 w-4" />
-                                     </a>
-                                   </Button>
-                                 )}
-                               </div>
-                             </div>
-                           </div>
-                           <p className="text-sm text-muted-foreground">
-                             Selling {isOnline ? onlineResult?.product?.name || 'Unknown Product' : (localResult?.product?.name || (result as any).product?.name || 'Unknown Product')}
-                           </p>
-                           
-                             <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                               <div className="flex items-center gap-2">
-                                 <MapPin className="h-4 w-4" />
-                                 <span>{isOnline ? onlineResult?.address || 'Address not available' : (localResult?.store?.address || (result as any).address || 'Address not available')}</span>
-                               </div>
-                              {!isOnline && localResult?.distance && (
-                                <div className="flex items-center gap-2">
-                                  <span className="ml-6">{localResult.distance.toFixed(1)} km away</span>
-                                </div>
+
+                          {/* CENTER: Store Information */}
+                          <div className="flex-1">
+                            {/* Store name and label on first row */}
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-xl font-semibold">
+                                {isOnline ? onlineResult?.name || 'Unknown Store' : (localResult?.store?.name || (result as any).name || 'Unknown Store')}
+                              </h3>
+                              {isOnline ? (
+                                <Badge variant="secondary" className="flex items-center gap-1">
+                                  <Globe className="h-3 w-3" />
+                                  Online Store
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="flex items-center gap-1">
+                                  <Store className="h-3 w-3" />
+                                  Local Store
+                                </Badge>
                               )}
-                              {!isOnline && localResult?.store?.phone && (
-                                <div className="flex items-center gap-2">
-                                  <Phone className="h-4 w-4" />
-                                  <span>{localResult.store.phone}</span>
-                                </div>
-                              )}
-                             {!isOnline && (localResult as any).verification && (
-                               <div className="flex items-center gap-2">
-                                 {(localResult as any).verification.verified ? (
-                                   <>
-                                     <CheckCircle className="h-4 w-4 text-green-600" />
-                                     <span className="text-green-600">Verified on Google Maps</span>
-                                     {typeof (localResult as any).verification.isOpen === 'boolean' && (
-                                       <Badge 
-                                         variant="outline" 
-                                         className={`ml-2 ${(localResult as any).verification.isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
-                                       >
-                                         <Clock className="h-3 w-3 mr-1" />
-                                         {(localResult as any).verification.isOpen ? 'Open Now' : 'Closed Now'}
-                                       </Badge>
-                                     )}
-                                   </>
-                                 ) : (
-                                   <>
-                                     <XCircle className="h-4 w-4 text-orange-600" />
-                                     <span className="text-orange-600">Not verified on Google Maps</span>
-                                   </>
-                                 )}
-                               </div>
-                             )}
-                           </div>
-                          
-                            <div className="flex items-center gap-3">
-                              {/* Empty div for potential future actions */}
                             </div>
+                            
+                            {/* Selling product subtitle on second row */}
+                            <p className="text-sm text-muted-foreground mb-2">
+                              Selling {isOnline ? onlineResult?.product?.name || 'Unknown Product' : (localResult?.product?.name || (result as any).product?.name || 'Unknown Product')}
+                            </p>
+                            
+                            {/* Location */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <MapPin className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">
+                                {isOnline ? onlineResult?.address || 'Address not available' : (localResult?.store?.address || (result as any).address || 'Address not available')}
+                              </span>
+                            </div>
+                            
+                            {/* Distance (if available) */}
+                            {!isOnline && localResult?.distance && (
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-sm text-muted-foreground ml-6">
+                                  {localResult.distance.toFixed(1)} km away
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Phone (if available) */}
+                            {!isOnline && localResult?.store?.phone && (
+                              <div className="flex items-center gap-2 mb-2">
+                                <Phone className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">{localResult.store.phone}</span>
+                              </div>
+                            )}
+                            
+                            {/* Verification badge */}
+                            {!isOnline && (result as any).verification && (
+                              <div className="flex items-center gap-2">
+                                {(result as any).verification.verified ? (
+                                  <>
+                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                    <span className="text-sm text-green-600">Verified on Google Maps</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="h-4 w-4 text-orange-600" />
+                                    <span className="text-sm text-orange-600">Not verified on Google Maps</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* RIGHT SIDE: Status and Actions */}
+                          <div className="flex flex-col justify-between items-end min-w-[120px]">
+                            {/* Open Now tag at the top */}
+                            <div>
+                              {!isOnline && (result as any).verification && typeof (result as any).verification.isOpen === 'boolean' && (
+                                <Badge 
+                                  variant="outline" 
+                                  className={`${(result as any).verification.isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
+                                >
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {(result as any).verification.isOpen ? 'Open Now' : 'Closed Now'}
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {/* Visit Website button centered vertically */}
+                            <div className="flex-1 flex items-center">
+                              {isOnline && onlineResult?.url && (
+                                <Button variant="default" size="sm" asChild>
+                                  <a 
+                                    href={onlineResult.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2"
+                                  >
+                                    Visit Website <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                              {!isOnline && (result as any).verification?.website && (
+                                <Button variant="default" size="sm" asChild>
+                                  <a 
+                                    href={(result as any).verification.website} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2"
+                                  >
+                                    Visit Website <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
+                     </CardContent>
                   </Card>
                 );
               })}
