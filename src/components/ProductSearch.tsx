@@ -405,6 +405,21 @@ const geocodeLocation = async (locationStr: string) => {
           console.log(`Simple deduplication: reduced from ${verifiedStores.length} to ${finalStores.length} stores`);
         }
 
+        // Step 6: Sort by distance (closest first)
+        finalStores = finalStores.sort((a: any, b: any) => {
+          // Sort by distance (nulls/undefined last)
+          if (a.distance === null || a.distance === undefined) return 1;
+          if (b.distance === null || b.distance === undefined) return -1;
+          return a.distance - b.distance;
+        });
+        
+        console.log('Final stores sorted by distance (closest first):');
+        finalStores.slice(0, 5).forEach((store: any, index: number) => {
+          const storeName = store.store?.name || store.name || 'Unknown Store';
+          const distance = store.distance ? `${store.distance.toFixed(1)} km` : 'Distance unknown';
+          console.log(`${index + 1}. ${storeName} - ${distance}`);
+        });
+
         // Set final results
         setResults({
           stores: finalStores,
