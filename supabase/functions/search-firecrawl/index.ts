@@ -58,7 +58,7 @@ serve(async (req) => {
 
     // Create location-specific search queries
     const locationQuery = searchLat && searchLng ? 
-      ` vicino ${searchLat.toFixed(4)},${searchLng.toFixed(4)} raggio 50km` : 
+      ` vicino ${searchLat.toFixed(4)},${searchLng.toFixed(4)} raggio 10km` : 
       ' Italia';
 
     // Generate searches for physical stores that sell this product
