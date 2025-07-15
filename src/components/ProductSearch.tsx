@@ -105,6 +105,14 @@ export function ProductSearch() {
     return () => clearTimeout(timeoutId);
   }, [location]);
 
+  // Auto-retrieve location on page load
+  useEffect(() => {
+    // Only auto-retrieve if location is empty and geolocation is supported
+    if (!location && navigator.geolocation) {
+      getCurrentLocation();
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
   const handleLocationSelect = (selectedLocation: string) => {
     setLocation(selectedLocation);
     setShowSuggestions(false);
@@ -125,24 +133,59 @@ export function ProductSearch() {
       async (position) => {
         const { latitude, longitude } = position.coords;
         
-        // Reverse geocode to get city name using Nominatim
+        // Reverse geocode to get detailed address using Nominatim
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
           );
           const data = await response.json();
-          const cityName = data.address && (data.address.city || data.address.town || data.address.village) && data.address.country ? 
-            `${data.address.city || data.address.town || data.address.village}, ${data.address.country}` : 
-            `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
           
-          setLocation(cityName);
+          // Build more precise location string from address components
+          let locationParts = [];
+          
+          if (data.address) {
+            // Add street info if available
+            if (data.address.road) {
+              if (data.address.house_number) {
+                locationParts.push(`${data.address.house_number} ${data.address.road}`);
+              } else {
+                locationParts.push(data.address.road);
+              }
+            }
+            
+            // Add district/suburb if available
+            if (data.address.suburb || data.address.city_district) {
+              locationParts.push(data.address.suburb || data.address.city_district);
+            }
+            
+            // Add city
+            if (data.address.city || data.address.town || data.address.village) {
+              locationParts.push(data.address.city || data.address.town || data.address.village);
+            }
+            
+            // Add state if available
+            if (data.address.state) {
+              locationParts.push(data.address.state);
+            }
+            
+            // Add country
+            if (data.address.country) {
+              locationParts.push(data.address.country);
+            }
+          }
+          
+          const detailedLocation = locationParts.length > 0 ? 
+            locationParts.join(', ') : 
+            `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          
+          setLocation(detailedLocation);
           setIsGettingLocation(false);
           toast({
             title: "Location found",
-            description: `Using ${cityName} for search`,
+            description: `Using ${detailedLocation} for search`,
           });
         } catch (error) {
-          setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
           setIsGettingLocation(false);
           toast({
             title: "Location found",
