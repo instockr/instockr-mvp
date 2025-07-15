@@ -478,9 +478,9 @@ const geocodeLocation = async (locationStr: string) => {
           <img 
             src={instockrLogo} 
             alt="InStockr Logo" 
-            className="w-16 h-16 drop-shadow-lg"
+            className="w-20 h-20 drop-shadow-lg"
           />
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-6xl font-bold bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
             InStockr
           </h1>
         </div>
