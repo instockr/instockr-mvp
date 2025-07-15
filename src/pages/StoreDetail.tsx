@@ -46,6 +46,7 @@ export default function StoreDetail() {
     const product = urlParams.get('product');
     const phone = urlParams.get('phone');
     const storeType = urlParams.get('type');
+    const photoUrl = urlParams.get('photoUrl');
 
     if (storeName && storeAddress && product) {
       setSearchedProduct(product);
@@ -55,6 +56,7 @@ export default function StoreDetail() {
         website: storeWebsite || undefined,
         phone: phone || undefined,
         storeType: storeType || undefined,
+        photoUrl: photoUrl || undefined,
       });
       
       // Crawl the store's website for product matches

@@ -857,14 +857,15 @@ const geocodeLocation = async (locationStr: string) => {
                             <div className="flex items-center gap-2 mb-2">
                               <button
                                 onClick={() => {
-                                  const params = new URLSearchParams({
-                                    name: storeName,
-                                    address: storeAddress,
-                                    product: results?.searchedProduct || productName,
-                                    ...(storePhone && { phone: storePhone }),
-                                    ...((result as any).verification?.website && { website: (result as any).verification.website }),
-                                    ...((result as any).store?.store_type && { type: (result as any).store.store_type })
-                                  });
+                                const params = new URLSearchParams({
+                                  name: storeName,
+                                  address: storeAddress,
+                                  product: results?.searchedProduct || productName,
+                                  ...(storePhone && { phone: storePhone }),
+                                  ...((result as any).verification?.website && { website: (result as any).verification.website }),
+                                  ...((result as any).store?.store_type && { type: (result as any).store.store_type }),
+                                  ...((result as any).verification?.photoUrl && { photoUrl: (result as any).verification.photoUrl })
+                                });
                                   navigate(`/store/${encodeURIComponent(storeName)}?${params}`);
                                 }}
                                 className="text-xl font-semibold text-primary hover:underline cursor-pointer text-left"
