@@ -736,8 +736,8 @@ const geocodeLocation = async (locationStr: string) => {
                               )}
                             </div>
                             
-                            {/* Visit Website button centered vertically */}
-                            <div className="flex-1 flex items-center">
+                            {/* Action buttons centered vertically */}
+                            <div className="flex-1 flex flex-col items-center justify-center gap-2">
                               {(result as any).verification?.website && (
                                 <Button variant="default" size="sm" asChild>
                                   <a 
@@ -747,6 +747,20 @@ const geocodeLocation = async (locationStr: string) => {
                                     className="flex items-center gap-2"
                                   >
                                     Visit Website <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                              
+                              {/* View on Maps button */}
+                              {storeAddress && (
+                                <Button variant="outline" size="sm" asChild>
+                                  <a 
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(storeAddress)}`}
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2"
+                                  >
+                                    View on Maps <MapPin className="h-4 w-4" />
                                   </a>
                                 </Button>
                               )}
