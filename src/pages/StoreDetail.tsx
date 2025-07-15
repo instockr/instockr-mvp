@@ -212,24 +212,25 @@ export default function StoreDetail() {
                       </a>
                     </div>
                   )}
-                  
-                  {storeData.openingHours && storeData.openingHours.length > 0 && (
-                    <div className="mt-4">
-                      <div className="flex items-center mb-2">
-                        <Clock className="h-5 w-5 mr-3 text-white/70" />
-                        <span className="text-lg font-medium">Opening Hours</span>
-                      </div>
-                      <div className="ml-8 space-y-1">
-                        {storeData.openingHours.map((hours, index) => (
-                          <div key={index} className="text-sm text-white/80">
-                            {hours}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
+
+              {/* Opening Hours - Right Side */}
+              {storeData.openingHours && storeData.openingHours.length > 0 && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-lg min-w-[200px]">
+                  <div className="flex items-center mb-3">
+                    <Clock className="h-5 w-5 mr-2 text-white/70" />
+                    <span className="text-lg font-medium text-white">Opening Hours</span>
+                  </div>
+                  <div className="space-y-1">
+                    {storeData.openingHours.map((hours, index) => (
+                      <div key={index} className="text-sm text-white/90">
+                        {hours}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
