@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Phone, Clock, Globe, Loader2, Tag, DollarSign, Store } from "lucide-react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { ArrowLeft, MapPin, Phone, Clock, Globe, Loader2, Tag, DollarSign, Store, Star, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ interface ProductMatch {
 interface StoreData {
   name: string;
   address: string;
+  product: string;
   phone?: string;
   website?: string;
   rating?: number;
@@ -31,6 +32,7 @@ interface StoreData {
 export default function StoreDetail() {
   const { storeId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
   const [storeData, setStoreData] = useState<StoreData | null>(null);
@@ -39,32 +41,22 @@ export default function StoreDetail() {
   const [searchedProduct, setSearchedProduct] = useState("");
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const storeName = urlParams.get('name');
-    const storeAddress = urlParams.get('address');
-    const storeWebsite = urlParams.get('website');
-    const product = urlParams.get('product');
-    const phone = urlParams.get('phone');
-    const storeType = urlParams.get('type');
-    const photoUrl = urlParams.get('photoUrl');
-
-    console.log('URL Parameters:');
-    console.log('photoUrl from URL:', photoUrl);
-    console.log('All URL params:', Object.fromEntries(urlParams));
-
-    if (storeName && storeAddress && product) {
-      setSearchedProduct(product);
-      setStoreData({
-        name: storeName,
-        address: storeAddress,
-        website: storeWebsite || undefined,
-        phone: phone || undefined,
-        storeType: storeType || undefined,
-        photoUrl: photoUrl || undefined,
-      });
+    console.log('StoreDetail - Location state:', location.state);
+    
+    // Get store data from React Router state
+    const stateData = location.state as StoreData;
+    
+    if (stateData && stateData.name && stateData.address && stateData.product) {
+      console.log('Store data received:', stateData);
+      setSearchedProduct(stateData.product);
+      setStoreData(stateData);
       
-      // Crawl the store's website for product matches
-      crawlStoreForProducts(storeName, storeWebsite || "", product);
+      // Crawl the store's website for product matches if website is available
+      if (stateData.website) {
+        crawlStoreForProducts(stateData.name, stateData.website, stateData.product);
+      } else {
+        setIsLoading(false);
+      }
     } else {
       toast({
         title: "Error",
@@ -73,7 +65,7 @@ export default function StoreDetail() {
       });
       navigate('/');
     }
-  }, [storeId, navigate, toast]);
+  }, [location.state, navigate, toast]);
 
   const crawlStoreForProducts = async (storeName: string, website: string, product: string) => {
     setIsLoading(true);
@@ -168,12 +160,31 @@ export default function StoreDetail() {
                   {storeData.name}
                 </h1>
                 
-                {storeData.storeType && (
-                  <Badge className="mb-4 bg-white/20 text-white border-white/30 backdrop-blur-sm">
-                    <Tag className="h-3 w-3 mr-1" />
-                    {storeData.storeType}
-                  </Badge>
-                )}
+                <div className="flex items-center gap-4 mb-4">
+                  {storeData.storeType && (
+                    <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
+                      <Tag className="h-3 w-3 mr-1" />
+                      {storeData.storeType}
+                    </Badge>
+                  )}
+                  
+                  {storeData.rating && (
+                    <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
+                      <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                      <span className="text-white font-medium">{storeData.rating}</span>
+                      {storeData.userRatingsTotal && (
+                        <span className="text-white/70 text-sm ml-1">({storeData.userRatingsTotal})</span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {storeData.isOpen !== undefined && (
+                    <Badge className={`${storeData.isOpen ? 'bg-green-500/20 text-green-300 border-green-300/30' : 'bg-red-500/20 text-red-300 border-red-300/30'} backdrop-blur-sm`}>
+                      <Clock className="h-3 w-3 mr-1" />
+                      {storeData.isOpen ? 'Open' : 'Closed'}
+                    </Badge>
+                  )}
+                </div>
                 
                 <div className="space-y-3 text-white/90">
                   <div className="flex items-center">
@@ -199,6 +210,22 @@ export default function StoreDetail() {
                       >
                         Visit Website
                       </a>
+                    </div>
+                  )}
+                  
+                  {storeData.openingHours && storeData.openingHours.length > 0 && (
+                    <div className="mt-4">
+                      <div className="flex items-center mb-2">
+                        <Clock className="h-5 w-5 mr-3 text-white/70" />
+                        <span className="text-lg font-medium">Opening Hours</span>
+                      </div>
+                      <div className="ml-8 space-y-1">
+                        {storeData.openingHours.map((hours, index) => (
+                          <div key={index} className="text-sm text-white/80">
+                            {hours}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -857,16 +857,20 @@ const geocodeLocation = async (locationStr: string) => {
                             <div className="flex items-center gap-2 mb-2">
                               <button
                                 onClick={() => {
-                                const params = new URLSearchParams({
-                                  name: storeName,
-                                  address: storeAddress,
-                                  product: results?.searchedProduct || productName,
-                                  ...(storePhone && { phone: storePhone }),
-                                  ...((result as any).verification?.website && { website: (result as any).verification.website }),
-                                  ...((result as any).store?.store_type && { type: (result as any).store.store_type }),
-                                  ...((result as any).verification?.photoUrl && { photoUrl: (result as any).verification.photoUrl })
-                                });
-                                  navigate(`/store/${encodeURIComponent(storeName)}?${params}`);
+                                  const storeData = {
+                                    name: storeName,
+                                    address: storeAddress,
+                                    product: results?.searchedProduct || productName,
+                                    phone: storePhone,
+                                    website: (result as any).verification?.website,
+                                    storeType: (result as any).store?.store_type,
+                                    photoUrl: (result as any).verification?.photoUrl,
+                                    rating: (result as any).verification?.rating,
+                                    userRatingsTotal: (result as any).verification?.userRatingsTotal,
+                                    isOpen: (result as any).verification?.isOpen,
+                                    openingHours: (result as any).verification?.openingHours,
+                                  };
+                                  navigate(`/store/${encodeURIComponent(storeName)}`, { state: storeData });
                                 }}
                                 className="text-xl font-semibold text-primary hover:underline cursor-pointer text-left"
                               >
