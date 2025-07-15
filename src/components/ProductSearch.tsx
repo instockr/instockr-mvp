@@ -529,9 +529,9 @@ const geocodeLocation = async (locationStr: string) => {
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="pl-4 pr-12 py-3 text-lg border-2 border-transparent bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-sm
-                          focus:border-gradient-to-r focus:from-purple-500 focus:to-blue-500 focus:ring-2 focus:ring-purple-500/20 
-                          transition-all duration-300 group-hover:shadow-lg group-hover:scale-[1.02] transform"
+                className="pl-4 pr-12 py-3 text-lg border-2 border-muted-foreground/20 bg-background/90 backdrop-blur-sm
+                          focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/10 focus:bg-background
+                          transition-all duration-300 group-hover:shadow-lg group-hover:border-purple-500/30 transform"
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60">
                 <Search className="h-5 w-5" />
@@ -556,9 +556,9 @@ const geocodeLocation = async (locationStr: string) => {
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   onFocus={() => location.length > 2 && setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  className="pl-4 pr-12 py-3 text-lg border-2 border-transparent bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-sm
-                            focus:border-gradient-to-r focus:from-green-500 focus:to-teal-500 focus:ring-2 focus:ring-green-500/20 
-                            transition-all duration-300 group-hover:shadow-lg group-hover:scale-[1.02] transform"
+                  className="pl-4 pr-12 py-3 text-lg border-2 border-muted-foreground/20 bg-background/90 backdrop-blur-sm
+                            focus:border-green-500/50 focus:ring-2 focus:ring-green-500/10 focus:bg-background 
+                            transition-all duration-300 group-hover:shadow-lg group-hover:border-green-500/30 transform"
                 />
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60">
                   <Globe className="h-5 w-5" />
