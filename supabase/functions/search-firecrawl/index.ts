@@ -68,21 +68,6 @@ serve(async (req) => {
         query: `${productName} negozio fisico punto vendita${locationQuery} indirizzo telefono`,
         limit: 5
       },
-      {
-        name: 'Store Locator Search',
-        query: `${productName} "dove comprare" "trova negozio" "store locator"${locationQuery}`,
-        limit: 4
-      },
-      {
-        name: 'Chain Stores Search',
-        query: `${productName} MediaWorld Unieuro Trony Euronics "punti vendita" negozi${locationQuery}`,
-        limit: 4
-      },
-      {
-        name: 'Local Retailers',
-        query: `${productName} negozio locale rivenditore autorizzato${locationQuery}`,
-        limit: 3
-      }
     ];
 
     const onlineResults = [];
