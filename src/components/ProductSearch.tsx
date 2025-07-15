@@ -62,32 +62,47 @@ export function ProductSearch() {
   const [results, setResults] = useState<SearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   
   const { toast } = useToast();
 
-  // Popular cities for quick suggestions
-  const popularCities = [
-    "New York, NY", "Los Angeles, CA", "Chicago, IL", "Houston, TX", "Phoenix, AZ",
-    "Philadelphia, PA", "San Antonio, TX", "San Diego, CA", "Dallas, TX", "San Jose, CA",
-    "Austin, TX", "Jacksonville, FL", "Fort Worth, TX", "Columbus, OH", "Charlotte, NC",
-    "San Francisco, CA", "Indianapolis, IN", "Seattle, WA", "Denver, CO", "Washington, DC",
-    "Boston, MA", "El Paso, TX", "Nashville, TN", "Detroit, MI", "Oklahoma City, OK",
-    "Portland, OR", "Las Vegas, NV", "Memphis, TN", "Louisville, KY", "Baltimore, MD",
-    "Milan, Italy", "Paris, France", "London, UK", "Berlin, Germany", "Madrid, Spain",
-    "Rome, Italy", "Amsterdam, Netherlands", "Barcelona, Spain", "Vienna, Austria"
-  ];
-
-  useEffect(() => {
-    if (location.length > 2) {
-      const filtered = popularCities.filter(city => 
-        city.toLowerCase().includes(location.toLowerCase())
-      ).slice(0, 8);
-      setLocationSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-    } else {
+  // Google Maps Places Autocomplete
+  const fetchLocationSuggestions = async (input: string) => {
+    if (input.length < 3) {
       setLocationSuggestions([]);
       setShowSuggestions(false);
+      return;
     }
+
+    setIsLoadingSuggestions(true);
+    try {
+      const response = await supabase.functions.invoke('google-places-autocomplete', {
+        body: { input }
+      });
+
+      if (response.data?.predictions) {
+        const suggestions = response.data.predictions.map((p: any) => p.description);
+        setLocationSuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      } else {
+        setLocationSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error fetching location suggestions:', error);
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchLocationSuggestions(location);
+    }, 300); // Debounce API calls
+
+    return () => clearTimeout(timeoutId);
   }, [location]);
 
   const handleLocationSelect = (selectedLocation: string) => {
@@ -224,8 +239,33 @@ const geocodeLocation = async (locationStr: string) => {
       return;
     }
 
+    if (!location.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid location",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     setResults(null);
+
+    // Validate location before proceeding
+    let locationCoords = null;
+    try {
+      locationCoords = await geocodeLocation(location);
+      console.log('Location validated:', locationCoords);
+    } catch (geocodeError) {
+      console.error('Location validation failed:', geocodeError);
+      toast({
+        title: "Invalid Location",
+        description: "Please enter a valid city or location that can be found on the map.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
 
     try {
       // Step 1: Generate LLM-powered search strategies
@@ -233,22 +273,6 @@ const geocodeLocation = async (locationStr: string) => {
       const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
         body: { productName: productName.trim() }
       });
-
-      // Get location coordinates for search
-      let locationCoords = null;
-      if (location.trim()) {
-        try {
-          locationCoords = await geocodeLocation(location);
-          console.log('Location coordinates:', locationCoords);
-        } catch (geocodeError) {
-          console.error('Geocoding failed:', geocodeError);
-          toast({
-            title: "Location Warning",
-            description: "Could not find exact location, searching without location filter",
-            variant: "default",
-          });
-        }
-      }
 
       // Step 2: Execute searches across all channels in parallel
       const searchPromises = [];
@@ -563,21 +587,32 @@ const geocodeLocation = async (locationStr: string) => {
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60">
                   <Globe className="h-5 w-5" />
                 </div>
-                {showSuggestions && locationSuggestions.length > 0 && (
+                {showSuggestions && (
                   <div className="absolute top-full left-0 right-0 z-50 bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-2xl mt-2 max-h-48 overflow-y-auto">
-                    {locationSuggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        className="w-full px-4 py-3 text-left hover:bg-muted/80 border-b border-border/30 last:border-b-0 flex items-center gap-3
-                                  transition-all duration-200 hover:scale-[1.01] transform first:rounded-t-lg last:rounded-b-lg"
-                        onClick={() => handleLocationSelect(suggestion)}
-                      >
-                        <div className="p-1 rounded-full bg-gradient-to-r from-green-400 to-teal-400">
-                          <MapPin className="h-3 w-3 text-white" />
-                        </div>
-                        <span className="font-medium">{suggestion}</span>
-                      </button>
-                    ))}
+                    {isLoadingSuggestions ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-sm text-muted-foreground">Loading suggestions...</span>
+                      </div>
+                    ) : locationSuggestions.length > 0 ? (
+                      locationSuggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          className="w-full px-4 py-3 text-left hover:bg-muted/80 border-b border-border/30 last:border-b-0 flex items-center gap-3
+                                    transition-all duration-200 hover:scale-[1.01] transform first:rounded-t-lg last:rounded-b-lg"
+                          onClick={() => handleLocationSelect(suggestion)}
+                        >
+                          <div className="p-1 rounded-full bg-gradient-to-r from-green-400 to-teal-400">
+                            <MapPin className="h-3 w-3 text-white" />
+                          </div>
+                          <span className="font-medium">{suggestion}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-sm text-muted-foreground">
+                        No location suggestions found
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
