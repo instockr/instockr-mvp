@@ -506,29 +506,48 @@ const geocodeLocation = async (locationStr: string) => {
       </div>
 
       {/* Search Form */}
-      <Card className="shadow-lg border-0 bg-gradient-to-b from-card to-card/50">
-        <CardContent className="pt-6 space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="product" className="text-sm font-medium flex items-center gap-2">
-              <Search className="h-4 w-4" />
+      <Card className="shadow-2xl border-0 bg-gradient-to-br from-card via-card/95 to-card/80 backdrop-blur-sm relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-blue-400/20 rounded-full animate-pulse"></div>
+          <div className="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-br from-green-400/20 to-teal-400/20 rounded-full animate-pulse delay-1000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-gradient-to-br from-pink-400/10 to-orange-400/10 rounded-full animate-pulse delay-500"></div>
+        </div>
+        
+        <CardContent className="pt-8 pb-8 space-y-6 relative z-10">
+          <div className="space-y-3">
+            <label htmlFor="product" className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white">
+                <Search className="h-4 w-4" />
+              </div>
               Product Name
             </label>
-            <Input
-              id="product"
-              placeholder="e.g., iPhone 15, Advil, Samsung TV..."
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            />
+            <div className="relative group">
+              <Input
+                id="product"
+                placeholder="e.g., iPhone 15, Advil, Samsung TV..."
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="pl-4 pr-12 py-3 text-lg border-2 border-transparent bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-sm
+                          focus:border-gradient-to-r focus:from-purple-500 focus:to-blue-500 focus:ring-2 focus:ring-purple-500/20 
+                          transition-all duration-300 group-hover:shadow-lg group-hover:scale-[1.02] transform"
+              />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60">
+                <Search className="h-5 w-5" />
+              </div>
+            </div>
           </div>
           
-          <div className="space-y-2 relative">
-            <label htmlFor="location" className="text-sm font-medium flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
+          <div className="space-y-3 relative">
+            <label htmlFor="location" className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <div className="p-1.5 rounded-lg bg-gradient-to-r from-green-500 to-teal-500 text-white">
+                <MapPin className="h-4 w-4" />
+              </div>
               Your Location
             </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
+            <div className="flex gap-3">
+              <div className="relative flex-1 group">
                 <Input
                   id="location"
                   placeholder="Enter city name (e.g., Milan, New York, Paris)"
@@ -537,17 +556,26 @@ const geocodeLocation = async (locationStr: string) => {
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   onFocus={() => location.length > 2 && setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  className="pl-4 pr-12 py-3 text-lg border-2 border-transparent bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-sm
+                            focus:border-gradient-to-r focus:from-green-500 focus:to-teal-500 focus:ring-2 focus:ring-green-500/20 
+                            transition-all duration-300 group-hover:shadow-lg group-hover:scale-[1.02] transform"
                 />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60">
+                  <Globe className="h-5 w-5" />
+                </div>
                 {showSuggestions && locationSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 z-50 bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-2xl mt-2 max-h-48 overflow-y-auto">
                     {locationSuggestions.map((suggestion, index) => (
                       <button
                         key={index}
-                        className="w-full px-3 py-2 text-left hover:bg-gray-100 border-b border-gray-100 last:border-b-0 flex items-center gap-2"
+                        className="w-full px-4 py-3 text-left hover:bg-muted/80 border-b border-border/30 last:border-b-0 flex items-center gap-3
+                                  transition-all duration-200 hover:scale-[1.01] transform first:rounded-t-lg last:rounded-b-lg"
                         onClick={() => handleLocationSelect(suggestion)}
                       >
-                        <MapPin className="h-3 w-3 text-gray-400" />
-                        {suggestion}
+                        <div className="p-1 rounded-full bg-gradient-to-r from-green-400 to-teal-400">
+                          <MapPin className="h-3 w-3 text-white" />
+                        </div>
+                        <span className="font-medium">{suggestion}</span>
                       </button>
                     ))}
                   </div>
@@ -555,37 +583,49 @@ const geocodeLocation = async (locationStr: string) => {
               </div>
               <Button
                 variant="outline"
-                size="icon"
+                size="lg"
                 onClick={getCurrentLocation}
                 disabled={isGettingLocation}
                 title="Use current location"
+                className="px-4 py-3 border-2 border-transparent bg-gradient-to-r from-orange-500/10 to-red-500/10 
+                          hover:from-orange-500/20 hover:to-red-500/20 hover:border-orange-500/30 
+                          transition-all duration-300 hover:shadow-lg hover:scale-105 transform"
               >
                 {isGettingLocation ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin text-orange-600" />
                 ) : (
-                  <MapPin className="h-4 w-4" />
+                  <MapPin className="h-5 w-5 text-orange-600" />
                 )}
               </Button>
             </div>
           </div>
 
-
           <Button 
             onClick={handleSearch} 
             disabled={isLoading}
-            className="w-full"
+            className="w-full py-4 text-lg font-semibold bg-gradient-to-r from-purple-600 via-blue-600 to-teal-600 
+                      hover:from-purple-700 hover:via-blue-700 hover:to-teal-700 text-white border-0 shadow-xl
+                      transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] transform
+                      disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-xl
+                      relative overflow-hidden group"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Searching...
-              </>
-            ) : (
-              <>
-                <Search className="mr-2 h-4 w-4" />
-                Search Stores
-              </>
-            )}
+            {/* Animated shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
+                          translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+            
+            <div className="relative z-10 flex items-center justify-center">
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                  <span className="animate-pulse">Searching stores...</span>
+                </>
+              ) : (
+                <>
+                  <Search className="mr-3 h-5 w-5" />
+                  <span>Search Stores</span>
+                </>
+              )}
+            </div>
           </Button>
         </CardContent>
       </Card>
