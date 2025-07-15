@@ -271,7 +271,10 @@ const geocodeLocation = async (locationStr: string) => {
       // Step 1: Generate LLM-powered search strategies
       console.log('Generating search strategies...');
       const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
-        body: { productName: productName.trim() }
+        body: { 
+          productName: productName.trim(),
+          location: location.trim()
+        }
       });
 
       // Step 2: Execute searches across all channels in parallel

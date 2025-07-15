@@ -75,6 +75,7 @@ Location: ${location}`;
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
+        messages: [
           {
             role: 'system',
             content: 'You are a search term generator for finding physical stores worldwide. Return only valid JSON with store categories in the appropriate local language.'
