@@ -48,6 +48,10 @@ export default function StoreDetail() {
     const storeType = urlParams.get('type');
     const photoUrl = urlParams.get('photoUrl');
 
+    console.log('URL Parameters:');
+    console.log('photoUrl from URL:', photoUrl);
+    console.log('All URL params:', Object.fromEntries(urlParams));
+
     if (storeName && storeAddress && product) {
       setSearchedProduct(product);
       setStoreData({
@@ -143,6 +147,11 @@ export default function StoreDetail() {
                       src={storeData.photoUrl} 
                       alt={storeData.name}
                       className="w-full h-full object-cover"
+                      onLoad={() => console.log('Image loaded successfully:', storeData.photoUrl)}
+                      onError={(e) => {
+                        console.error('Image failed to load:', storeData.photoUrl);
+                        console.error('Error details:', e);
+                      }}
                     />
                   </div>
                 ) : (
