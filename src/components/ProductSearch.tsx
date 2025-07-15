@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, MapPin, Loader2, Globe, Store, ExternalLink, ChevronDown, Phone, Clock, CheckCircle, XCircle, Tag } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +66,7 @@ export function ProductSearch() {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Google Maps Places Autocomplete
   const fetchLocationSuggestions = async (input: string) => {
@@ -794,7 +796,22 @@ const geocodeLocation = async (locationStr: string) => {
                           <div className="flex-1">
                             {/* Store name with category tag */}
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 className="text-xl font-semibold">{storeName}</h3>
+                              <button
+                                onClick={() => {
+                                  const params = new URLSearchParams({
+                                    name: storeName,
+                                    address: storeAddress,
+                                    product: results?.searchedProduct || productName,
+                                    ...(storePhone && { phone: storePhone }),
+                                    ...((result as any).verification?.website && { website: (result as any).verification.website }),
+                                    ...((result as any).store?.store_type && { type: (result as any).store.store_type })
+                                  });
+                                  navigate(`/store/${encodeURIComponent(storeName)}?${params}`);
+                                }}
+                                className="text-xl font-semibold text-primary hover:underline cursor-pointer text-left"
+                              >
+                                {storeName}
+                              </button>
                               {result.product.name && (
                                 <Badge variant="outline" className="text-xs px-2 py-1 bg-primary/10 text-primary border-primary/20 flex items-center gap-1">
                                   <Tag className="h-3 w-3" />
