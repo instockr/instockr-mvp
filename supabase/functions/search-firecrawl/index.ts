@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { productName, location, searchRadius, physicalOnly, userLat, userLng } = await req.json();
+    const { productName, location, searchRadius, userLat, userLng } = await req.json();
 
     if (!productName) {
       return new Response(
@@ -42,7 +42,7 @@ serve(async (req) => {
     }
 
     console.log('Searching for physical stores selling:', productName);
-    console.log('Location:', location, 'Physical only:', physicalOnly);
+    console.log('Location:', location);
     console.log('User coordinates:', userLat, userLng);
 
     // Parse location coordinates if provided as string
@@ -110,19 +110,17 @@ serve(async (req) => {
         if (searchResult.success && searchResult.data && Array.isArray(searchResult.data)) {
           searchResult.data.forEach((result: any, index: number) => {
             if (result.title && result.url) {
-              // Skip results that are clearly online-only if physicalOnly flag is set
-              if (physicalOnly) {
-                const content = (result.markdown || result.title || '').toLowerCase();
-                const isOnlineOnly = content.includes('spedizione gratuita') || 
-                                   content.includes('consegna a domicilio') ||
-                                   content.includes('acquista online') ||
-                                   content.includes('e-commerce') ||
-                                   (content.includes('online') && !content.includes('negozio') && !content.includes('store'));
-                
-                // Skip if it's clearly online-only
-                if (isOnlineOnly) {
-                  return;
-                }
+              // Skip results that are clearly online-only since we're looking for physical stores
+              const content = (result.markdown || result.title || '').toLowerCase();
+              const isOnlineOnly = content.includes('spedizione gratuita') || 
+                                 content.includes('consegna a domicilio') ||
+                                 content.includes('acquista online') ||
+                                 content.includes('e-commerce') ||
+                                 (content.includes('online') && !content.includes('negozio') && !content.includes('store'));
+              
+              // Skip if it's clearly online-only
+              if (isOnlineOnly) {
+                return;
               }
 
               // Look for physical location indicators
