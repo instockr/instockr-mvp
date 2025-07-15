@@ -576,7 +576,9 @@ const geocodeLocation = async (locationStr: string) => {
       </div>
 
       {/* Search Form */}
-      <Card className="shadow-2xl border-0 bg-gradient-to-br from-card via-card/95 to-card/80 backdrop-blur-sm relative overflow-hidden">
+      <Card className="shadow-2xl drop-shadow-2xl border-0 bg-gradient-to-br from-card via-card/95 to-card/80 backdrop-blur-sm relative overflow-hidden 
+                   before:absolute before:inset-0 before:bg-gradient-to-t before:from-transparent before:via-transparent before:to-white/10 before:pointer-events-none
+                   ring-1 ring-black/5">
         {/* Animated background elements */}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-blue-400/20 rounded-full animate-pulse"></div>
