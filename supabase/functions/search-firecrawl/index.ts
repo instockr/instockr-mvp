@@ -65,7 +65,7 @@ serve(async (req) => {
     const searchSources = [
       {
         name: 'Physical Store Search',
-        query: `${productName} negozio fisico punto vendita${locationQuery} indirizzo telefono`,
+        query: `punto vendita ${productName} ${locationQuery}`,
         limit: 5
       },
     ];
