@@ -287,30 +287,17 @@ const geocodeLocation = async (locationStr: string) => {
           searchPromises.push(searchPromise.then(result => ({ source: 'google_maps', strategy: searchTerm, result })));
         }
 
-        // Also search online stores but filter for physical ones only
+        // Web-based physical store discovery
         for (const searchTerm of searchTerms) {
-          const firecrawlPromise = supabase.functions.invoke('search-online-stores', {
+          const webStorePromise = supabase.functions.invoke('search-web-stores', {
             body: {
               productName: searchTerm,
               location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
-              searchRadius: '50km',
-              physicalOnly: false, // Don't filter too aggressively
               userLat: locationCoords?.lat || 45.4642,
               userLng: locationCoords?.lng || 9.19
             }
           });
-          searchPromises.push(firecrawlPromise.then(result => ({ source: 'firecrawl', strategy: searchTerm, result })));
-        }
-
-        // Add Google Shopping search
-        for (const searchTerm of searchTerms) {
-          const googleShoppingPromise = supabase.functions.invoke('search-google-shopping', {
-            body: {
-              query: searchTerm,
-              limit: 5
-            }
-          });
-          searchPromises.push(googleShoppingPromise.then(result => ({ source: 'google_shopping', strategy: searchTerm, result })));
+          searchPromises.push(webStorePromise.then(result => ({ source: 'web_stores', strategy: searchTerm, result })));
         }
         
         console.log(`Total search promises created: ${searchPromises.length}`);
