@@ -287,9 +287,9 @@ const geocodeLocation = async (locationStr: string) => {
           searchPromises.push(searchPromise.then(result => ({ source: 'google_maps', strategy: searchTerm, result })));
         }
 
-        // Web-based physical store discovery
+        // Google Custom Search Engine for web-based store discovery
         for (const searchTerm of searchTerms) {
-          const webStorePromise = supabase.functions.invoke('search-google-cse', {
+          const csePromise = supabase.functions.invoke('search-google-cse', {
             body: {
               productName: searchTerm,
               location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
@@ -297,7 +297,20 @@ const geocodeLocation = async (locationStr: string) => {
               userLng: locationCoords?.lng || 9.19
             }
           });
-          searchPromises.push(webStorePromise.then(result => ({ source: 'web_stores', strategy: searchTerm, result })));
+          searchPromises.push(csePromise.then(result => ({ source: 'google_cse', strategy: searchTerm, result })));
+        }
+
+        // FireCrawl web scraping for additional store discovery
+        for (const searchTerm of searchTerms) {
+          const firecrawlPromise = supabase.functions.invoke('search-firecrawl', {
+            body: {
+              productName: searchTerm,
+              location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
+              userLat: locationCoords?.lat || 45.4642,
+              userLng: locationCoords?.lng || 9.19
+            }
+          });
+          searchPromises.push(firecrawlPromise.then(result => ({ source: 'firecrawl', strategy: searchTerm, result })));
         }
         
         console.log(`Total search promises created: ${searchPromises.length}`);
