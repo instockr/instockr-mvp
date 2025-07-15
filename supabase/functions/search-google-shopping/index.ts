@@ -16,78 +16,92 @@ serve(async (req) => {
     
     console.log('Searching Google Shopping for:', query);
 
-    // Use Google Shopping RSS feed instead of Custom Search API
-    // This doesn't require API keys and returns actual shopping results
-    const searchUrl = `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(query)}&gl=it&hl=it&num=${limit}`;
-    
-    console.log('Google Shopping search URL:', searchUrl);
+    // Get API keys from environment
+    const apiKey = Deno.env.get('GOOGLE_CSE_API_KEY');
+    const cseId = Deno.env.get('GOOGLE_CSE_ID');
 
-    // Since we can't scrape Google directly, we'll create mock shopping results for now
-    // In a real implementation, you'd use a proper shopping API or web scraping service
+    if (!apiKey || !cseId) {
+      console.error('Missing Google API credentials');
+      return new Response(
+        JSON.stringify({ error: 'Google API credentials not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Use Google Custom Search API for shopping results
+    const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query + ' shop buy online store')}&num=${limit}&gl=it&hl=it`;
+    
+    console.log('Google Custom Search API URL:', searchUrl.replace(apiKey, '[REDACTED]'));
+
+    const response = await fetch(searchUrl);
+    
+    if (!response.ok) {
+      console.error('Google API error:', response.status, response.statusText);
+      throw new Error(`Google API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Google API response:', JSON.stringify(data, null, 2));
+
     const results = [];
-    
-    // Create some realistic online store results based on the query
-    const onlineStores = [
-      {
-        name: 'Amazon.it',
-        domain: 'amazon.it',
-        type: 'marketplace'
-      },
-      {
-        name: 'eBay.it',
-        domain: 'ebay.it', 
-        type: 'marketplace'
-      },
-      {
-        name: 'MediaWorld',
-        domain: 'mediaworld.it',
-        type: 'electronics'
-      },
-      {
-        name: 'Unieuro',
-        domain: 'unieuro.it',
-        type: 'electronics'
-      },
-      {
-        name: 'Euronics',
-        domain: 'euronics.it',
-        type: 'electronics'
-      }
-    ];
 
-    console.log(`Creating ${Math.min(limit, onlineStores.length)} mock Google Shopping results`);
+    if (data.items && data.items.length > 0) {
+      data.items.forEach((item, index) => {
+        // Extract domain from URL
+        let domain = '';
+        let storeName = '';
+        try {
+          const url = new URL(item.link);
+          domain = url.hostname.replace('www.', '');
+          storeName = domain.split('.')[0];
+        } catch (e) {
+          domain = item.displayLink || 'unknown';
+          storeName = domain;
+        }
 
-    onlineStores.slice(0, limit).forEach((store, index) => {
-      // Generate realistic price ranges based on product type
-      let priceRange = '€50-200';
-      if (query.toLowerCase().includes('iphone') || query.toLowerCase().includes('samsung')) {
-        priceRange = '€300-1200';
-      } else if (query.toLowerCase().includes('laptop') || query.toLowerCase().includes('computer')) {
-        priceRange = '€400-2000';
-      } else if (query.toLowerCase().includes('tv') || query.toLowerCase().includes('televisore')) {
-        priceRange = '€200-1500';
-      }
+        // Determine store type based on domain or content
+        let storeType = 'marketplace';
+        if (domain.includes('amazon')) storeType = 'marketplace';
+        else if (domain.includes('ebay')) storeType = 'marketplace';
+        else if (domain.includes('mediaworld') || domain.includes('unieuro') || domain.includes('euronics')) storeType = 'electronics';
+        else if (domain.includes('farmacia') || domain.includes('pharmacy')) storeType = 'pharmacy';
+        else if (domain.includes('supermercato') || domain.includes('grocery')) storeType = 'grocery';
+        else storeType = 'specialty';
 
-      results.push({
-        id: `google-shopping-${Date.now()}-${index}`,
-        name: `${store.name} - ${query}`,
-        store_type: store.type,
-        address: `Online Store - ${store.domain}`,
-        distance: null,
-        latitude: null,
-        longitude: null,
-        phone: null,
-        product: {
-          name: query,
-          price: priceRange,
-          description: `${query} available on ${store.name}`,
-          availability: 'Check website for current stock'
-        },
-        url: `https://${store.domain}/search?q=${encodeURIComponent(query)}`,
-        isOnline: true,
-        source: 'Google Shopping'
+        // Generate realistic price range based on query
+        let priceRange = '€50-200';
+        const queryLower = query.toLowerCase();
+        if (queryLower.includes('iphone') || queryLower.includes('samsung') || queryLower.includes('smartphone')) {
+          priceRange = '€300-1200';
+        } else if (queryLower.includes('laptop') || queryLower.includes('computer') || queryLower.includes('pc')) {
+          priceRange = '€400-2000';
+        } else if (queryLower.includes('tv') || queryLower.includes('televisore') || queryLower.includes('television')) {
+          priceRange = '€200-1500';
+        } else if (queryLower.includes('libro') || queryLower.includes('book')) {
+          priceRange = '€10-50';
+        }
+
+        results.push({
+          id: `google-shopping-${Date.now()}-${index}`,
+          name: `${storeName.charAt(0).toUpperCase() + storeName.slice(1)} - ${query}`,
+          store_type: storeType,
+          address: `Online Store - ${domain}`,
+          distance: null,
+          latitude: null,
+          longitude: null,
+          phone: null,
+          product: {
+            name: query,
+            price: priceRange,
+            description: item.snippet || `${query} available online`,
+            availability: 'Check website for current stock'
+          },
+          url: item.link,
+          isOnline: true,
+          source: 'Google Shopping'
+        });
       });
-    });
+    }
 
     console.log(`Found ${results.length} Google Shopping results`);
 
