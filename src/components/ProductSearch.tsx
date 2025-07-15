@@ -109,20 +109,31 @@ export function ProductSearch() {
 
   // Load persisted data on component mount
   useEffect(() => {
+    console.log('ProductSearch mounted - checking for saved data...');
+    
     // Load saved search data
     const savedProductName = sessionStorage.getItem('searchProductName');
     const savedLocation = sessionStorage.getItem('searchLocation');
     const savedResults = sessionStorage.getItem('searchResults');
+    
+    console.log('Saved data found:', { 
+      productName: !!savedProductName, 
+      location: !!savedLocation, 
+      results: !!savedResults 
+    });
 
     if (savedProductName) {
+      console.log('Restoring product name:', savedProductName);
       setProductName(savedProductName);
     }
     if (savedLocation) {
+      console.log('Restoring location:', savedLocation);
       setLocation(savedLocation);
     }
     if (savedResults) {
       try {
         const parsedResults = JSON.parse(savedResults);
+        console.log('Restoring search results:', parsedResults.totalResults, 'stores');
         setResults(parsedResults);
       } catch (error) {
         console.error('Error parsing saved search results:', error);
@@ -139,6 +150,7 @@ export function ProductSearch() {
   // Save search data to sessionStorage whenever it changes
   useEffect(() => {
     if (productName) {
+      console.log('Saving product name to session:', productName);
       sessionStorage.setItem('searchProductName', productName);
     } else {
       sessionStorage.removeItem('searchProductName');
@@ -147,6 +159,7 @@ export function ProductSearch() {
 
   useEffect(() => {
     if (location) {
+      console.log('Saving location to session:', location);
       sessionStorage.setItem('searchLocation', location);
     } else {
       sessionStorage.removeItem('searchLocation');
@@ -155,8 +168,10 @@ export function ProductSearch() {
 
   useEffect(() => {
     if (results) {
+      console.log('Saving search results to session:', results.totalResults, 'stores');
       sessionStorage.setItem('searchResults', JSON.stringify(results));
     } else {
+      console.log('Clearing search results from session');
       sessionStorage.removeItem('searchResults');
     }
   }, [results]);
