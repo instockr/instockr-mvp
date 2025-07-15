@@ -107,13 +107,59 @@ export function ProductSearch() {
     return () => clearTimeout(timeoutId);
   }, [location]);
 
-  // Auto-retrieve location on page load
+  // Load persisted data on component mount
   useEffect(() => {
-    // Only auto-retrieve if location is empty and geolocation is supported
-    if (!location && navigator.geolocation) {
+    // Load saved search data
+    const savedProductName = sessionStorage.getItem('searchProductName');
+    const savedLocation = sessionStorage.getItem('searchLocation');
+    const savedResults = sessionStorage.getItem('searchResults');
+
+    if (savedProductName) {
+      setProductName(savedProductName);
+    }
+    if (savedLocation) {
+      setLocation(savedLocation);
+    }
+    if (savedResults) {
+      try {
+        const parsedResults = JSON.parse(savedResults);
+        setResults(parsedResults);
+      } catch (error) {
+        console.error('Error parsing saved search results:', error);
+        sessionStorage.removeItem('searchResults');
+      }
+    }
+
+    // Auto-retrieve location only if no saved location and location is empty
+    if (!savedLocation && !location && navigator.geolocation) {
       getCurrentLocation();
     }
   }, []); // Empty dependency array means this runs once on mount
+
+  // Save search data to sessionStorage whenever it changes
+  useEffect(() => {
+    if (productName) {
+      sessionStorage.setItem('searchProductName', productName);
+    } else {
+      sessionStorage.removeItem('searchProductName');
+    }
+  }, [productName]);
+
+  useEffect(() => {
+    if (location) {
+      sessionStorage.setItem('searchLocation', location);
+    } else {
+      sessionStorage.removeItem('searchLocation');
+    }
+  }, [location]);
+
+  useEffect(() => {
+    if (results) {
+      sessionStorage.setItem('searchResults', JSON.stringify(results));
+    } else {
+      sessionStorage.removeItem('searchResults');
+    }
+  }, [results]);
 
   const handleLocationSelect = (selectedLocation: string) => {
     setLocation(selectedLocation);
