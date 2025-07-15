@@ -24,40 +24,57 @@ serve(async (req) => {
 
     console.log('Generating search terms for:', productName, 'in location:', location);
 
-    const prompt = `Given the product "${productName}" and location "${location}", identify the types of physical stores in that location that would sell this product.
+    const prompt = `You are an expert at identifying which types of physical stores sell specific products. 
 
-Return ONLY store categories, NOT the product name itself.
-Maximum 2 categories.
-Use the local language appropriate for the location provided.
+Given the product "${productName}" and location "${location}", identify the 2 most relevant types of physical stores that would actually sell this specific product.
 
-Guidelines:
-- If location is in Italy: use Italian terms
-- If location is in France: use French terms  
-- If location is in Germany: use German terms
-- If location is in Spain: use Spanish terms
-- If location is in English-speaking countries (US, UK, etc.): use English terms
-- For other locations: use English as default
+CRITICAL RULES:
+1. Think carefully about what the product actually IS and where it would realistically be sold
+2. Return ONLY specific store categories, NOT generic terms like "negozi" (stores) or "shops"
+3. Use the local language appropriate for the location
+4. Maximum 2 categories that are the MOST likely to have this product
 
-Examples:
-For Italy:
-- "smartphone" → ["elettronica", "telefonia"]
-- "cacciavite" → ["ferramenta", "bricolage"]
-- "medicina" → ["farmacia", "parafarmacia"]
+Language Guidelines:
+- Italy: Use Italian store category terms
+- France: Use French store category terms
+- Germany: Use German store category terms
+- Spain: Use Spanish store category terms
+- English-speaking countries: Use English terms
+- Other locations: Use English as default
 
-For France:
-- "smartphone" → ["électronique", "téléphonie"]
-- "tournevis" → ["quincaillerie", "bricolage"]
-- "médicament" → ["pharmacie", "parapharmacie"]
+DETAILED EXAMPLES by product type:
 
-For Germany:
-- "smartphone" → ["elektronik", "handy"]
-- "schraubendreher" → ["baumarkt", "eisenwaren"]
-- "medizin" → ["apotheke", "drogerie"]
+Electronics & Technology:
+- "smartphone" (Italy) → ["elettronica", "telefonia"]
+- "laptop" (France) → ["informatique", "électronique"]
+- "headphones" (Germany) → ["elektronik", "multimedia"]
 
-For English-speaking countries:
-- "smartphone" → ["electronics", "phone store"]
-- "screwdriver" → ["hardware", "tools"]
-- "medicine" → ["pharmacy", "drugstore"]
+Hardware & Tools:
+- "nastro adesivo/duct tape" (Italy) → ["ferramenta", "bricolage"]
+- "tournevis/screwdriver" (France) → ["quincaillerie", "bricolage"] 
+- "hammer" (Germany) → ["baumarkt", "eisenwaren"]
+- "drill" (English) → ["hardware", "tools"]
+
+Health & Medicine:
+- "aspirina" (Italy) → ["farmacia", "parafarmacia"]
+- "vitamines" (France) → ["pharmacie", "parapharmacie"]
+- "pain reliever" (English) → ["pharmacy", "drugstore"]
+
+Home & Garden:
+- "paint" → ["paint store", "hardware"] (English) / ["vernici", "ferramenta"] (Italy)
+- "soil" → ["garden center", "nursery"] (English) / ["vivaio", "giardinaggio"] (Italy)
+
+Automotive:
+- "car battery" → ["auto parts", "automotive"] (English) / ["ricambi auto", "autofficina"] (Italy)
+- "motor oil" → ["auto shop", "gas station"] (English) / ["stazione servizio", "ricambi auto"] (Italy)
+
+Books & Stationery:
+- "notebook" → ["stationery", "bookstore"] (English) / ["cartoleria", "libreria"] (Italy)
+- "pen" → ["office supplies", "stationery"] (English) / ["cartoleria", "ufficio"] (Italy)
+
+Food & Groceries:
+- "bread" → ["bakery", "grocery"] (English) / ["panetteria", "supermercato"] (Italy)
+- "meat" → ["butcher", "grocery"] (English) / ["macelleria", "supermercato"] (Italy)
 
 Return a JSON object with this structure:
 {
@@ -127,29 +144,59 @@ function generateFallbackSearchTerms(productName: string, location?: string): an
   const productSpecificTerms: string[] = [];
   const lowerProductName = productName.toLowerCase();
 
+  // Electronics & Technology
   if (lowerProductName.includes('phone') || lowerProductName.includes('smartphone') || lowerProductName.includes('cellulare')) {
     productSpecificTerms.push("elettronica", "telefonia");
   }
   else if (lowerProductName.includes('computer') || lowerProductName.includes('laptop') || lowerProductName.includes('pc')) {
     productSpecificTerms.push("informatica", "elettronica");
   }
-  else if (lowerProductName.includes('book') || lowerProductName.includes('libro')) {
-    productSpecificTerms.push("libreria", "cartoleria");
+  
+  // Hardware & Tools - INCLUDING TAPE/ADHESIVES
+  else if (lowerProductName.includes('nastro') || lowerProductName.includes('adesivo') || lowerProductName.includes('tape') || lowerProductName.includes('duct')) {
+    productSpecificTerms.push("ferramenta", "bricolage");
   }
+  else if (lowerProductName.includes('tool') || lowerProductName.includes('cacciavite') || lowerProductName.includes('martello') || lowerProductName.includes('chiave')) {
+    productSpecificTerms.push("ferramenta", "bricolage");
+  }
+  else if (lowerProductName.includes('viti') || lowerProductName.includes('bulloni') || lowerProductName.includes('chiodi')) {
+    productSpecificTerms.push("ferramenta", "bricolage");
+  }
+  
+  // Health & Medicine
   else if (lowerProductName.includes('medicine') || lowerProductName.includes('farmaco') || lowerProductName.includes('aspirina')) {
     productSpecificTerms.push("farmacia", "parafarmacia");
   }
-  else if (lowerProductName.includes('tool') || lowerProductName.includes('cacciavite') || lowerProductName.includes('martello')) {
-    productSpecificTerms.push("ferramenta", "bricolage");
+  
+  // Books & Stationery
+  else if (lowerProductName.includes('book') || lowerProductName.includes('libro')) {
+    productSpecificTerms.push("libreria", "cartoleria");
   }
-  else if (lowerProductName.includes('food') || lowerProductName.includes('cibo')) {
+  else if (lowerProductName.includes('penna') || lowerProductName.includes('matita') || lowerProductName.includes('quaderno')) {
+    productSpecificTerms.push("cartoleria", "libreria");
+  }
+  
+  // Food & Groceries
+  else if (lowerProductName.includes('food') || lowerProductName.includes('cibo') || lowerProductName.includes('pasta') || lowerProductName.includes('pane')) {
     productSpecificTerms.push("supermercato", "alimentari");
   }
+  
+  // Home & Furniture
   else if (lowerProductName.includes('materasso') || lowerProductName.includes('mattress')) {
     productSpecificTerms.push("arredamento", "materassi");
   }
+  else if (lowerProductName.includes('mobili') || lowerProductName.includes('furniture')) {
+    productSpecificTerms.push("arredamento", "mobili");
+  }
+  
+  // Clothing
+  else if (lowerProductName.includes('vestiti') || lowerProductName.includes('clothes') || lowerProductName.includes('maglietta')) {
+    productSpecificTerms.push("abbigliamento", "moda");
+  }
+  
+  // Default fallback - use more general but still specific terms
   else {
-    productSpecificTerms.push("elettronica", "negozi");
+    productSpecificTerms.push("ferramenta", "supermercato");
   }
 
   // Return only store categories, max 2
