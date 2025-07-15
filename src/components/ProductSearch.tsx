@@ -256,7 +256,7 @@ const geocodeLocation = async (locationStr: string) => {
       if (strategiesResponse.error) {
         console.log('Strategy generation failed, using basic search');
         // Fallback to basic database search
-        const fallbackPromise = supabase.functions.invoke('search-stores', {
+        const fallbackPromise = supabase.functions.invoke('search-google-maps', {
           body: {
             productName: productName.trim(),
             userLat: locationCoords?.lat || 45.4642, // Default to Milan if no coords
@@ -276,7 +276,7 @@ const geocodeLocation = async (locationStr: string) => {
         // Create promises for each search term and channel
         for (const searchTerm of searchTerms) {
           // Google Maps search for physical stores
-          const searchPromise = supabase.functions.invoke('search-stores', {
+          const searchPromise = supabase.functions.invoke('search-google-maps', {
             body: {
               productName: searchTerm,
               userLat: locationCoords?.lat || 45.4642,
@@ -289,7 +289,7 @@ const geocodeLocation = async (locationStr: string) => {
 
         // Web-based physical store discovery
         for (const searchTerm of searchTerms) {
-          const webStorePromise = supabase.functions.invoke('search-web-stores', {
+          const webStorePromise = supabase.functions.invoke('search-google-cse', {
             body: {
               productName: searchTerm,
               location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
