@@ -130,11 +130,11 @@ export default function StoreDetail() {
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KPGcgZmlsbD0iI2ZmZmZmZiIgZmlsbC1vcGFjaXR5PSIwLjA1Ij4KPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPgo8L2c+CjwvZz4KPC9zdmc+')] opacity-20"></div>
           
           <div className="relative z-10 p-8">
-            <div className="flex items-start gap-6">
+            <div className="flex items-start gap-8">
               {/* Store Image */}
               <div className="relative">
                 {storeData.photoUrl ? (
-                  <div className="w-32 h-32 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 backdrop-blur-sm">
+                  <div className="w-40 h-40 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 backdrop-blur-sm">
                     <img 
                       src={storeData.photoUrl} 
                       alt={storeData.name}
@@ -147,15 +147,15 @@ export default function StoreDetail() {
                     />
                   </div>
                 ) : (
-                  <div className="w-32 h-32 rounded-2xl bg-white/10 backdrop-blur-sm border-4 border-white/20 
+                  <div className="w-40 h-40 rounded-2xl bg-white/10 backdrop-blur-sm border-4 border-white/20 
                                 flex items-center justify-center shadow-2xl">
-                    <Store className="h-16 w-16 text-white/70" />
+                    <Store className="h-20 w-20 text-white/70" />
                   </div>
                 )}
               </div>
 
               {/* Store Info */}
-              <div className="flex-1 text-white">
+              <div className="flex-1 text-white ml-4">
                 <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
                   {storeData.name}
                 </h1>
