@@ -136,7 +136,7 @@ export default function StoreDetail() {
       
       toast({
         title: "Refreshing",
-        description: "Re-crawling store website for products...",
+        description: `Looking for ${storeData.product} again...`,
       });
     }
   };
@@ -312,7 +312,7 @@ export default function StoreDetail() {
                 </div>
                 <div className="ml-4">
                   <p className="text-lg font-medium text-gray-800 dark:text-white">
-                    Crawling store website for products...
+                    Looking for {searchedProduct}...
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Please wait while we search for matches
