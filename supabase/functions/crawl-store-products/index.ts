@@ -76,7 +76,8 @@ ${htmlSlice}`;
   console.log(`🤖 Full OpenAI response:`, JSON.stringify(data, null, 2));
   
   const content = data.choices[0].message.content;
-  console.log(`💬 OpenAI content: ${content}`);
+  console.log(`💬 OpenAI content:`, content);
+  console.log(`📋 COMPLETE LLM ANSWER (full response):`, JSON.stringify(content));
 
   try {
     const match = content.match(/\[.*\]/s);
