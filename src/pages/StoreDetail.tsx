@@ -155,7 +155,7 @@ export default function StoreDetail() {
               </div>
 
               {/* Store Info */}
-              <div className="flex-1 text-white ml-4">
+              <div className="flex-1 text-white ml-6">
                 <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
                   {storeData.name}
                 </h1>
