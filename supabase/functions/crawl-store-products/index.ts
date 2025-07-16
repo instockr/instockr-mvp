@@ -126,7 +126,10 @@ ${htmlSlice}
 }
 
 serve(async (req) => {
-  console.log('🚀 === CRAWL FUNCTION STARTED ===');
+  console.log('🚀🚀🚀 === CRAWL FUNCTION STARTED === 🚀🚀🚀');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', Object.fromEntries(req.headers.entries()));
   
   if (req.method === 'OPTIONS') {
     console.log('📝 OPTIONS request - returning CORS headers');
