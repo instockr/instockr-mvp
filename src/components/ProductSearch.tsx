@@ -109,35 +109,22 @@ export function ProductSearch() {
 
   // Load persisted data on component mount
   useEffect(() => {
-    console.log('=== ProductSearch mounted - checking for saved data ===');
-    
     // Load saved search data
     const savedProductName = sessionStorage.getItem('searchProductName');
     const savedLocation = sessionStorage.getItem('searchLocation');
     const savedResults = sessionStorage.getItem('searchResults');
-    
-    console.log('Session storage contents:', { 
-      productName: savedProductName, 
-      location: savedLocation, 
-      hasResults: !!savedResults,
-      resultsLength: savedResults ? savedResults.length : 0
-    });
 
     if (savedProductName) {
-      console.log('Restoring product name:', savedProductName);
       setProductName(savedProductName);
     }
     
     if (savedLocation) {
-      console.log('Restoring location:', savedLocation);
       setLocation(savedLocation);
     }
     
     if (savedResults) {
       try {
         const parsedResults = JSON.parse(savedResults);
-        console.log('Restoring search results - stores count:', parsedResults?.stores?.length || 0);
-        console.log('Parsed results structure:', parsedResults);
         setResults(parsedResults);
       } catch (error) {
         console.error('Error parsing saved search results:', error);
@@ -147,7 +134,6 @@ export function ProductSearch() {
 
     // Auto-retrieve location only if no saved location and location is empty
     if (!savedLocation && !location && navigator.geolocation) {
-      console.log('No saved location, getting current location...');
       getCurrentLocation();
     }
   }, []); // Only run once on mount
@@ -155,21 +141,18 @@ export function ProductSearch() {
   // Save search data to sessionStorage whenever it changes
   useEffect(() => {
     if (productName) {
-      console.log('Saving product name to session:', productName);
       sessionStorage.setItem('searchProductName', productName);
     }
   }, [productName]);
 
   useEffect(() => {
     if (location) {
-      console.log('Saving location to session:', location);
       sessionStorage.setItem('searchLocation', location);
     }
   }, [location]);
 
   useEffect(() => {
     if (results) {
-      console.log('Saving search results to session - stores count:', results.stores?.length || 0);
       sessionStorage.setItem('searchResults', JSON.stringify(results));
     }
   }, [results]);
