@@ -32,7 +32,7 @@ async function extractProductsFromPageWithAI(url: string, productName: string): 
   console.log(`📄 HTML length: ${html.length} characters`);
   console.log(`📝 HTML preview (first 1000 chars):\n${html.slice(0, 1000)}`);
   
-  const htmlSlice = html.slice(0, 10000);
+  const htmlSlice = html.slice(0, 50000);
   const prompt = `You are a smart extraction AI. Given the raw HTML content of a search page from an e-commerce website, extract all products that clearly match the term "${productName}". Only extract real products with actual prices.
 
 Return a JSON array of objects in this format:
