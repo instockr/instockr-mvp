@@ -20,139 +20,260 @@ interface ProductMatch {
   url?: string;
 }
 
-// Enhanced product extraction function
-function extractProductsFromText(text: string, html: string, productName: string, websiteUrl: string): ProductMatch[] {
-  const products: ProductMatch[] = [];
-  const productLower = productName.toLowerCase();
-  const searchTerms = [productLower, ...productLower.split(' ')];
+// AI-powered website analysis
+async function analyzeWebsiteForSearch(html: string, markdown: string, productName: string, storeName: string): Promise<{
+  searchUrl?: string;
+  searchStrategy: string;
+  products: ProductMatch[];
+}> {
+  const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   
-  // Price patterns (€, $, USD, EUR, etc.)
-  const pricePatterns = [
-    /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*€/g,
-    /€\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/g,
-    /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*EUR/g,
-    /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*\$$/g,
-    /\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/g,
-    /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*USD/g
-  ];
-  
-  // Split text into potential product sections
-  const sections = text.split(/\n\s*\n/).filter(section => section.trim().length > 10);
-  
-  for (const section of sections) {
-    const sectionLower = section.toLowerCase();
-    
-    // Check if this section contains our product
-    const relevantSection = searchTerms.some(term => 
-      sectionLower.includes(term) || 
-      sectionLower.includes(term.replace(/\s+/g, '')) ||
-      sectionLower.includes(term.replace(/\s+/g, '-'))
-    );
-    
-    if (relevantSection) {
-      // Extract price from this section
-      let foundPrice = 'Contact store for pricing';
-      for (const pattern of pricePatterns) {
-        const match = section.match(pattern);
-        if (match) {
-          foundPrice = match[0];
-          break;
-        }
-      }
-      
-      // Extract product name from section
-      const lines = section.split('\n').filter(line => line.trim());
-      let productNameCandidate = lines.find(line => {
-        const lineLower = line.toLowerCase();
-        return searchTerms.some(term => lineLower.includes(term));
-      });
-      
-      if (!productNameCandidate) {
-        productNameCandidate = lines[0]; // Use first line as fallback
-      }
-      
-      // Clean up product name
-      const cleanName = productNameCandidate
-        ?.replace(/^\W+|\W+$/g, '')
-        .replace(/\s+/g, ' ')
-        .trim() || `${productName} - Available`;
-      
-      // Extract description (use next few lines)
-      const descLines = lines.slice(1, 4).filter(line => 
-        line.trim().length > 5 && 
-        !line.match(/^\d+[.,]\d+/) && // Skip price lines
-        !line.toLowerCase().includes('add to cart')
-      );
-      
-      const description = descLines.length > 0 ? descLines.join(' ').substring(0, 200) : undefined;
-      
-      // Check for availability keywords
-      let availability = undefined;
-      const availabilityKeywords = ['in stock', 'available', 'out of stock', 'sold out', 'limited', 'preorder'];
-      for (const keyword of availabilityKeywords) {
-        if (sectionLower.includes(keyword)) {
-          availability = keyword;
-          break;
-        }
-      }
-      
-      products.push({
-        name: cleanName,
-        price: foundPrice,
-        description,
-        availability,
-        url: websiteUrl
-      });
-    }
+  if (!openAIApiKey) {
+    throw new Error('OpenAI API key not configured');
   }
-  
-  return products;
+
+  const prompt = `Analyze this ${storeName} website and help me find "${productName}" products.
+
+WEBSITE CONTENT:
+${markdown.substring(0, 3000)}
+
+HTML STRUCTURE (first 2000 chars):
+${html.substring(0, 2000)}
+
+TASK: I need to find "${productName}" on this ${storeName} website. Please:
+
+1. Look for any search functionality (search boxes, search URLs, product category links)
+2. Identify if there are direct product listings visible
+3. Extract any products related to "${productName}" that are already visible
+4. Suggest the best strategy to find this product
+
+RESPOND IN THIS EXACT JSON FORMAT:
+{
+  "searchUrl": "URL_if_search_form_found_or_null",
+  "searchStrategy": "description_of_best_approach",
+  "visibleProducts": [
+    {
+      "name": "product_name",
+      "price": "price_with_currency",
+      "description": "brief_description",
+      "availability": "in_stock_or_available_or_null",
+      "url": "product_url_or_website_url"
+    }
+  ]
 }
 
-// Enhanced HTML parsing for structured data
-function extractProductsFromHTML(html: string, productName: string, websiteUrl: string): ProductMatch[] {
-  const products: ProductMatch[] = [];
-  const productLower = productName.toLowerCase();
+Focus on finding actual "${productName}" products with real prices and availability.`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-2025-04-14',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert web scraper that analyzes e-commerce websites to find specific products. Always respond with valid JSON only.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 1000
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    
+    // Parse the JSON response
+    let analysis;
+    try {
+      analysis = JSON.parse(content);
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', content);
+      // Fallback to basic analysis
+      analysis = {
+        searchUrl: null,
+        searchStrategy: "Manual search required - AI parsing failed",
+        visibleProducts: []
+      };
+    }
+
+    return {
+      searchUrl: analysis.searchUrl,
+      searchStrategy: analysis.searchStrategy,
+      products: analysis.visibleProducts || []
+    };
+
+  } catch (error) {
+    console.error('AI analysis failed:', error);
+    return {
+      searchStrategy: "AI analysis failed - falling back to basic search",
+      products: []
+    };
+  }
+}
+
+// Smart product search using AI-guided approach
+async function searchForProducts(website: string, productName: string, storeName: string): Promise<ProductMatch[]> {
+  const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
+  if (!firecrawlApiKey) {
+    throw new Error('Firecrawl API key not configured');
+  }
+
+  console.log(`Starting smart search for "${productName}" on ${storeName}`);
+
+  // Step 1: Scrape the main website to understand structure
+  const mainScrapeResponse = await fetch('https://api.firecrawl.dev/v0/scrape', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${firecrawlApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      url: website,
+      pageOptions: {
+        onlyMainContent: true,
+        includeHtml: true
+      }
+    }),
+  });
+
+  if (!mainScrapeResponse.ok) {
+    throw new Error(`Failed to scrape main website: ${mainScrapeResponse.statusText}`);
+  }
+
+  const mainScrapeData = await mainScrapeResponse.json();
+  const html = mainScrapeData.data?.html || '';
+  const markdown = mainScrapeData.data?.markdown || '';
+
+  console.log('Analyzing website structure with AI...');
+
+  // Step 2: Use AI to analyze the website and find products
+  const analysis = await analyzeWebsiteForSearch(html, markdown, productName, storeName);
   
-  // Common product container selectors
-  const productSelectors = [
-    'div[class*="product"]',
-    'div[class*="item"]',
-    'article[class*="product"]',
-    'li[class*="product"]',
-    '[data-product]',
-    '.product-card',
-    '.product-item',
-    '.product-tile'
-  ];
-  
-  // Try to find structured product data
-  const productPattern = new RegExp(`<[^>]*class[^>]*product[^>]*>([\\s\\S]*?)</[^>]*>`, 'gi');
-  const matches = html.match(productPattern);
-  
-  if (matches) {
-    for (const match of matches) {
-      const matchLower = match.toLowerCase();
-      if (matchLower.includes(productLower)) {
-        // Extract price
-        const priceMatch = match.match(/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*[€$]|[€$]\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/);
-        const price = priceMatch ? (priceMatch[1] || priceMatch[2]) : 'Contact store for pricing';
-        
-        // Extract product name from title, h1, h2, etc.
-        const titleMatch = match.match(/<(?:h[1-6]|title|[^>]*title[^>]*)>([^<]+)</i);
-        const name = titleMatch ? titleMatch[1].trim() : `${productName} - Available`;
-        
-        products.push({
-          name: name,
-          price: price.includes('€') || price.includes('$') ? price : `${price} €`,
-          description: `Product available at ${websiteUrl}`,
-          url: websiteUrl
+  console.log('AI Analysis:', {
+    strategy: analysis.searchStrategy,
+    foundProducts: analysis.products.length,
+    searchUrl: analysis.searchUrl
+  });
+
+  let allProducts = [...analysis.products];
+
+  // Step 3: If AI found a search URL, try to search there
+  if (analysis.searchUrl && allProducts.length === 0) {
+    console.log(`Attempting targeted search at: ${analysis.searchUrl}`);
+    
+    try {
+      // Try to construct search URL with product name
+      let searchUrlWithProduct = analysis.searchUrl;
+      if (!searchUrlWithProduct.includes('?') && !searchUrlWithProduct.includes('=')) {
+        // Simple URL, try appending search parameter
+        searchUrlWithProduct = `${analysis.searchUrl}?q=${encodeURIComponent(productName)}`;
+      }
+
+      const searchScrapeResponse = await fetch('https://api.firecrawl.dev/v0/scrape', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${firecrawlApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: searchUrlWithProduct,
+          pageOptions: {
+            onlyMainContent: true,
+            includeHtml: true
+          }
+        }),
+      });
+
+      if (searchScrapeResponse.ok) {
+        const searchData = await searchScrapeResponse.json();
+        if (searchData.data?.markdown) {
+          const searchAnalysis = await analyzeWebsiteForSearch(
+            searchData.data.html || '', 
+            searchData.data.markdown, 
+            productName, 
+            storeName
+          );
+          allProducts.push(...searchAnalysis.products);
+        }
+      }
+    } catch (searchError) {
+      console.error('Search attempt failed:', searchError);
+    }
+  }
+
+  // Step 4: If still no products, try common e-commerce patterns
+  if (allProducts.length === 0) {
+    console.log('Trying common e-commerce URL patterns...');
+    
+    const commonPatterns = [
+      `/search?q=${encodeURIComponent(productName)}`,
+      `/products?search=${encodeURIComponent(productName)}`,
+      `/shop?q=${encodeURIComponent(productName)}`,
+      `/?s=${encodeURIComponent(productName)}`
+    ];
+
+    for (const pattern of commonPatterns) {
+      try {
+        const patternUrl = new URL(pattern, website).toString();
+        console.log(`Trying pattern: ${patternUrl}`);
+
+        const patternResponse = await fetch('https://api.firecrawl.dev/v0/scrape', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: patternUrl,
+            pageOptions: {
+              onlyMainContent: true,
+              includeHtml: true
+            }
+          }),
         });
+
+        if (patternResponse.ok) {
+          const patternData = await patternResponse.json();
+          if (patternData.data?.markdown) {
+            const patternAnalysis = await analyzeWebsiteForSearch(
+              patternData.data.html || '', 
+              patternData.data.markdown, 
+              productName, 
+              storeName
+            );
+            if (patternAnalysis.products.length > 0) {
+              allProducts.push(...patternAnalysis.products);
+              break; // Found products, stop searching
+            }
+          }
+        }
+      } catch (patternError) {
+        console.error(`Pattern ${pattern} failed:`, patternError);
+        continue;
       }
     }
   }
-  
-  return products;
+
+  // Remove duplicates and return
+  const uniqueProducts = allProducts.filter((product, index, self) => 
+    index === self.findIndex(p => p.name === product.name && p.price === product.price)
+  );
+
+  console.log(`Smart search completed: ${uniqueProducts.length} unique products found`);
+  return uniqueProducts;
 }
 
 serve(async (req) => {
@@ -164,7 +285,7 @@ serve(async (req) => {
   try {
     const { storeName, website, productName }: CrawlRequest = await req.json();
     
-    console.log(`Starting crawl for ${storeName} - Product: ${productName} - Website: ${website}`);
+    console.log(`Starting smart crawl for ${storeName} - Product: ${productName} - Website: ${website}`);
     
     if (!storeName || !productName) {
       return new Response(
@@ -182,120 +303,26 @@ serve(async (req) => {
       );
     }
 
-    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!firecrawlApiKey) {
-      console.error('FIRECRAWL_API_KEY not found');
-      return new Response(
-        JSON.stringify({ error: 'Firecrawl API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     // Clean and validate website URL
     let cleanWebsite = website;
     if (!cleanWebsite.startsWith('http://') && !cleanWebsite.startsWith('https://')) {
       cleanWebsite = 'https://' + cleanWebsite;
     }
 
-    console.log(`Scraping website: ${cleanWebsite}`);
+    console.log(`Starting smart product search on: ${cleanWebsite}`);
 
-    // Use Firecrawl to scrape the store's website
-    const scrapeResponse = await fetch('https://api.firecrawl.dev/v0/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${firecrawlApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: cleanWebsite,
-        pageOptions: {
-          onlyMainContent: true,
-          includeHtml: true
-        }
-      }),
-    });
+    // Use the new smart search approach
+    const products = await searchForProducts(cleanWebsite, productName, storeName);
 
-    if (!scrapeResponse.ok) {
-      const errorText = await scrapeResponse.text();
-      console.error('Firecrawl scraping failed:', errorText);
-      return new Response(
-        JSON.stringify({ products: [] }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const scrapeData = await scrapeResponse.json();
-    console.log('Firecrawl response received, data keys:', Object.keys(scrapeData.data || {}));
-
-    let products: ProductMatch[] = [];
-
-    // Strategy 1: Extract from markdown/text content
-    if (scrapeData.data?.markdown) {
-      console.log('Trying text extraction...');
-      const textProducts = extractProductsFromText(
-        scrapeData.data.markdown, 
-        scrapeData.data.html || '', 
-        productName, 
-        cleanWebsite
-      );
-      products.push(...textProducts);
-    }
-
-    // Strategy 2: Extract from HTML structure
-    if (products.length === 0 && scrapeData.data?.html) {
-      console.log('Trying HTML extraction...');
-      const htmlProducts = extractProductsFromHTML(
-        scrapeData.data.html, 
-        productName, 
-        cleanWebsite
-      );
-      products.push(...htmlProducts);
-    }
-
-    // Strategy 3: Basic keyword matching fallback
-    if (products.length === 0 && scrapeData.data?.markdown) {
-      console.log('Using basic keyword matching fallback...');
-      
-      const markdown = scrapeData.data.markdown.toLowerCase();
-      const productLower = productName.toLowerCase();
-      
-      // Check for product mentions and commerce indicators
-      const hasProductMention = markdown.includes(productLower) || 
-                              markdown.includes(productLower.split(' ')[0]) ||
-                              productLower.split(' ').some(term => markdown.includes(term));
-      
-      const hasCommerceIndicators = markdown.includes('price') || 
-                                  markdown.includes('€') || 
-                                  markdown.includes('$') ||
-                                  markdown.includes('buy') ||
-                                  markdown.includes('shop') ||
-                                  markdown.includes('order');
-      
-      if (hasProductMention || hasCommerceIndicators) {
-        products.push({
-          name: `${productName} - Available at ${storeName}`,
-          price: 'Contact store for pricing',
-          description: 'Product may be available - contact store for details and current pricing',
-          availability: 'Contact store for availability',
-          url: cleanWebsite
-        });
-      }
-    }
-
-    // Remove duplicates
-    const uniqueProducts = products.filter((product, index, self) => 
-      index === self.findIndex(p => p.name === product.name)
-    );
-
-    console.log(`Found ${uniqueProducts.length} unique product matches`);
+    console.log(`Smart crawl completed: Found ${products.length} products`);
 
     return new Response(
-      JSON.stringify({ products: uniqueProducts }),
+      JSON.stringify({ products }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error in crawl-store-products function:', error);
+    console.error('Error in smart crawl-store-products function:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', products: [] }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
