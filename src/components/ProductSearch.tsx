@@ -430,11 +430,7 @@ const geocodeLocation = async (locationStr: string) => {
       const finalStores: Store[] = [];
       
       allResults.forEach((searchResult, index) => {
-        console.log(`Processing search result ${index}:`, searchResult);
-        
         if (searchResult.result && searchResult.result.data && searchResult.result.data.stores && Array.isArray(searchResult.result.data.stores)) {
-          console.log(`Result ${index} (${searchResult.source}/${searchResult.strategy}) returned ${searchResult.result.data.stores.length} stores`);
-          
           // All stores come from Google Maps, so they're already verified
           const storesWithVerification = searchResult.result.data.stores.map((store: any) => ({
             ...store,
@@ -450,18 +446,10 @@ const geocodeLocation = async (locationStr: string) => {
             }
           }));
           finalStores.push(...storesWithVerification);
-          console.log(`Added ${storesWithVerification.length} stores from Google Maps result ${index}`);
-        } else if (searchResult.result && searchResult.result.error) {
-          console.error(`Search ${index} (${searchResult.source}/${searchResult.strategy}) failed:`, searchResult.result.error);
-        } else {
-          console.warn(`Search result ${index} has unexpected structure:`, searchResult);
         }
       });
 
-      console.log(`Total stores found: ${finalStores.length}`);
-
       // Step 4: Deduplicate stores by address
-      console.log('Deduplicating stores by address...');
       const deduplicationResponse = await supabase.functions.invoke('simple-deduplication', {
         body: { stores: finalStores }
       });
@@ -469,9 +457,6 @@ const geocodeLocation = async (locationStr: string) => {
       let deduplicatedStores = finalStores;
       if (deduplicationResponse.data?.deduplicatedStores) {
         deduplicatedStores = deduplicationResponse.data.deduplicatedStores;
-        console.log(`Deduplication: reduced from ${finalStores.length} to ${deduplicatedStores.length} stores`);
-      } else {
-        console.warn('Deduplication failed, using original stores');
       }
 
       // Step 5: Sort by distance (closest first)
@@ -480,13 +465,6 @@ const geocodeLocation = async (locationStr: string) => {
         if (a.distance === null || a.distance === undefined) return 1;
         if (b.distance === null || b.distance === undefined) return -1;
         return a.distance - b.distance;
-      });
-      
-      console.log('Final stores sorted by distance (closest first):');
-      deduplicatedStores.slice(0, 5).forEach((store: any, index: number) => {
-        const storeName = store.store?.name || store.name || 'Unknown Store';
-        const distance = store.distance ? `${store.distance.toFixed(1)} km` : 'Distance unknown';
-        console.log(`${index + 1}. ${storeName} - ${distance}`);
       });
 
       // Check if we have results
