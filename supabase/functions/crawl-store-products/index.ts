@@ -23,10 +23,16 @@ interface ProductMatch {
 
 // Extract products using OpenAI from a known search URL's raw text
 async function extractProductsFromPageWithAI(url: string, productName: string): Promise<ProductMatch[]> {
+  console.log(`🔍 Fetching URL: ${url}`);
+  
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openAIApiKey) throw new Error('Missing OpenAI API Key');
 
   const html = await fetch(url).then(res => res.text());
+  console.log(`📄 HTML length: ${html.length} characters`);
+  console.log(`📝 HTML preview (first 1000 chars):\n${html.slice(0, 1000)}`);
+  
+  const htmlSlice = html.slice(0, 10000);
   const prompt = `You are a smart extraction AI. Given the raw HTML content of a search page from an e-commerce website, extract all products that clearly match the term "${productName}". Only extract real products with actual prices.
 
 Return a JSON array of objects in this format:
@@ -44,7 +50,9 @@ Return a JSON array of objects in this format:
 
 Here is the page content:
 
-${html.slice(0, 10000)}`;
+${htmlSlice}`;
+
+  console.log(`🤖 Sending prompt to OpenAI (${prompt.length} chars)`);
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -63,14 +71,27 @@ ${html.slice(0, 10000)}`;
     }),
   });
 
+  console.log(`🤖 OpenAI response status: ${res.status}`);
   const data = await res.json();
+  console.log(`🤖 Full OpenAI response:`, JSON.stringify(data, null, 2));
+  
   const content = data.choices[0].message.content;
+  console.log(`💬 OpenAI content: ${content}`);
 
   try {
     const match = content.match(/\[.*\]/s);
-    return match ? JSON.parse(match[0]) : [];
-  } catch {
-    console.error('Failed to parse:', content);
+    if (match) {
+      console.log(`✅ Found JSON match: ${match[0]}`);
+      const products = JSON.parse(match[0]);
+      console.log(`✅ Parsed ${products.length} products:`, products);
+      return products;
+    } else {
+      console.log(`❌ No JSON array found in response`);
+      return [];
+    }
+  } catch (error) {
+    console.error('❌ Failed to parse JSON:', error);
+    console.error('❌ Content was:', content);
     return [];
   }
 }
