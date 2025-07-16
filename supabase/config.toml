@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.verify-store-maps]
 verify_jwt = false
+
+[functions.crawl-store-products]
+verify_jwt = false
