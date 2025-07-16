@@ -113,8 +113,22 @@ serve(async (req) => {
       });
     }
 
-    // Construct direct search URL (works for Saturn)
-    const searchUrl = `${website.replace(/\/$/, '')}/de/search.html?query=${encodeURIComponent(productName)}`;
+    // Construct search URL based on the store
+    let searchUrl: string;
+    
+    if (website.includes('home24.de')) {
+      // For home24, use the main website search
+      searchUrl = `https://www.home24.de/search/?q=${encodeURIComponent(productName)}`;
+    } else if (website.includes('saturn.de')) {
+      // For Saturn, use the store-specific search
+      searchUrl = `${website.replace(/\/$/, '')}/de/search.html?query=${encodeURIComponent(productName)}`;
+    } else {
+      // Default fallback: try to use the main domain for search
+      const domain = new URL(website).origin;
+      searchUrl = `${domain}/search?q=${encodeURIComponent(productName)}`;
+    }
+    
+    console.log(`🔗 Constructed search URL: ${searchUrl}`);
     const products = await extractProductsFromPageWithAI(searchUrl, productName);
 
     return new Response(JSON.stringify({ products }), {
