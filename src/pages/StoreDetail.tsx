@@ -263,16 +263,16 @@ export default function StoreDetail() {
                 </div>
               </div>
             ) : productMatches.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {productMatches.map((product, index) => (
                   <div key={index} className="relative group">
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-teal-600/20 
                                   rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     
-                    <div className="relative bg-white/60 dark:bg-black/60 backdrop-blur-sm rounded-2xl p-6 
+                    <div className="relative bg-white/60 dark:bg-black/60 backdrop-blur-sm rounded-2xl p-5 
                                   border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300 
                                   hover:scale-[1.02] transform border-l-4 border-l-purple-600">
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="flex justify-between items-start mb-2">
                         <h3 className="text-xl font-bold text-gray-800 dark:text-white group-hover:text-purple-600 transition-colors">
                           {product.name}
                         </h3>
@@ -283,13 +283,13 @@ export default function StoreDetail() {
                       </div>
                       
                       {product.description && (
-                        <p className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
+                        <p className="text-gray-700 dark:text-gray-300 mb-2 leading-relaxed">
                           {product.description}
                         </p>
                       )}
                       
                       {product.availability && (
-                        <div className="flex items-center mb-4 text-sm bg-green-50 dark:bg-green-900/20 
+                        <div className="flex items-center text-sm bg-green-50 dark:bg-green-900/20 
                                       rounded-full px-4 py-2 w-fit">
                           <Clock className="h-4 w-4 mr-2 text-green-600" />
                           <span className="text-green-700 dark:text-green-400 font-medium">
