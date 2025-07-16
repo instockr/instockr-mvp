@@ -81,7 +81,7 @@ serve(async (req) => {
           let photoUrl = '';
           if (place.photos && place.photos.length > 0) {
             const photoReference = place.photos[0].photo_reference;
-            photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${googleMapsApiKey}`;
+            photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${googleApiKey}`;
           }
 
           results.push({
