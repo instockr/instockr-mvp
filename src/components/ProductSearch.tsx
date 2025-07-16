@@ -418,18 +418,6 @@ const geocodeLocation = async (locationStr: string) => {
           searchPromises.push(searchPromise.then(result => ({ source: 'google_maps', strategy: searchTerm, result })));
         }
 
-        // Google Custom Search Engine for web-based store discovery
-        for (const searchTerm of searchTerms) {
-          const csePromise = supabase.functions.invoke('search-google-cse', {
-            body: {
-              productName: searchTerm,
-              location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
-              userLat: locationCoords?.lat || 45.4642,
-              userLng: locationCoords?.lng || 9.19
-            }
-          });
-          searchPromises.push(csePromise.then(result => ({ source: 'google_cse', strategy: searchTerm, result })));
-        }
 
         // FireCrawl web scraping for additional store discovery
         for (const searchTerm of searchTerms) {

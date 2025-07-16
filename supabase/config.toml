@@ -44,8 +44,6 @@ verify_jwt = false
 [functions.search-firecrawl]
 verify_jwt = false
 
-[functions.search-google-cse]
-verify_jwt = false
 
 [functions.search-google-maps]
 verify_jwt = false
