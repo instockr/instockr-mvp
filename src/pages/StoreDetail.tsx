@@ -298,20 +298,6 @@ export default function StoreDetail() {
                         </div>
                       )}
                       
-                      {product.url && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          asChild
-                          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 
-                                   hover:from-purple-700 hover:to-blue-700 shadow-lg hover:shadow-xl 
-                                   transition-all duration-300"
-                        >
-                          <a href={product.url} target="_blank" rel="noopener noreferrer">
-                            View Product
-                          </a>
-                        </Button>
-                      )}
                     </div>
                   </div>
                 ))}
