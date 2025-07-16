@@ -134,7 +134,7 @@ export default function StoreDetail() {
               {/* Store Image */}
               <div className="relative">
                 {storeData.photoUrl ? (
-                  <div className="w-40 h-40 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 backdrop-blur-sm">
+                  <div className="w-44 h-44 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 backdrop-blur-sm">
                     <img 
                       src={storeData.photoUrl} 
                       alt={storeData.name}
@@ -147,15 +147,15 @@ export default function StoreDetail() {
                     />
                   </div>
                 ) : (
-                  <div className="w-40 h-40 rounded-2xl bg-white/10 backdrop-blur-sm border-4 border-white/20 
+                  <div className="w-44 h-44 rounded-2xl bg-white/10 backdrop-blur-sm border-4 border-white/20 
                                 flex items-center justify-center shadow-2xl">
-                    <Store className="h-20 w-20 text-white/70" />
+                    <Store className="h-22 w-22 text-white/70" />
                   </div>
                 )}
               </div>
 
               {/* Store Info */}
-              <div className="flex-1 text-white ml-6">
+              <div className="flex-1 text-white">
                 <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
                   {storeData.name}
                 </h1>
