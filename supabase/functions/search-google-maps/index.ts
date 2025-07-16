@@ -77,6 +77,13 @@ serve(async (req) => {
             storeType = 'grocery';
           }
 
+          // Get photo URL if available
+          let photoUrl = '';
+          if (place.photos && place.photos.length > 0) {
+            const photoReference = place.photos[0].photo_reference;
+            photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${googleMapsApiKey}`;
+          }
+
           results.push({
             id: `google-maps-${Date.now()}-${index}`,
             name: place.name,
@@ -96,7 +103,9 @@ serve(async (req) => {
             isOnline: false,
             source: 'Google Maps',
             rating: place.rating || null,
-            userRatingsTotal: place.user_ratings_total || null
+            userRatingsTotal: place.user_ratings_total || null,
+            place_id: place.place_id, // Add place_id for verification object
+            photoUrl: photoUrl || undefined // Add photo URL
           });
         }
       });

@@ -461,7 +461,7 @@ const geocodeLocation = async (locationStr: string) => {
                 userRatingsTotal: store.userRatingsTotal,
                 isOpen: true, // We can assume it's open since it came from Google Maps
                 openingHours: [], // Would need additional API call for detailed hours
-                photoUrl: undefined,
+                photoUrl: store.photoUrl, // Use the photo URL from the store data
                 website: undefined
               }
             }));
