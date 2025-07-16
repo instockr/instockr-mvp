@@ -99,7 +99,7 @@ serve(async (req) => {
               description: `${productName} potentially available`,
               availability: 'Contact store for availability'
             },
-            url: null,
+            url: place.website || null,
             isOnline: false,
             source: 'Google Maps',
             rating: place.rating || null,
