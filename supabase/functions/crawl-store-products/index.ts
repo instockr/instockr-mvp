@@ -105,6 +105,7 @@ serve(async (req) => {
 
   try {
     const { storeName, website, productName }: CrawlRequest = await req.json();
+    console.log(`🚀 NEW VERSION: Processing request for store: ${storeName}, website: ${website}, product: ${productName}`);
 
     if (!website || !productName) {
       return new Response(JSON.stringify({ error: 'Missing input' }), {
