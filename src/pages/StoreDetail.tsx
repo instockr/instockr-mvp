@@ -13,6 +13,7 @@ interface ProductMatch {
   description?: string;
   availability?: string;
   url?: string;
+  image?: string;
 }
 
 interface StoreData {
@@ -295,32 +296,50 @@ export default function StoreDetail() {
                     <div className="relative bg-white/60 dark:bg-black/60 backdrop-blur-sm rounded-2xl p-5 
                                   border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300 
                                   hover:scale-[1.02] transform border-l-4 border-l-purple-600">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white group-hover:text-purple-600 transition-colors">
-                          {product.name}
-                        </h3>
-                        <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full 
-                                      shadow-lg font-bold text-lg">
-                          {product.price}
+                      <div className="flex gap-4">
+                        {/* Product Image */}
+                        {product.image && (
+                          <div className="flex-shrink-0">
+                            <img 
+                              src={product.image} 
+                              alt={product.name}
+                              className="w-20 h-20 rounded-lg object-cover border border-white/20"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Product Content */}
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white group-hover:text-purple-600 transition-colors">
+                              {product.name}
+                            </h3>
+                            <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full 
+                                          shadow-lg font-bold text-lg ml-4">
+                              {product.price}
+                            </div>
+                          </div>
+                          
+                          {product.description && (
+                            <p className="text-gray-700 dark:text-gray-300 mb-2 leading-relaxed">
+                              {product.description}
+                            </p>
+                          )}
+                          
+                          {product.availability && (
+                            <div className="flex items-center text-sm bg-green-50 dark:bg-green-900/20 
+                                          rounded-full px-4 py-2 w-fit">
+                              <Clock className="h-4 w-4 mr-2 text-green-600" />
+                              <span className="text-green-700 dark:text-green-400 font-medium">
+                                {product.availability}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      
-                      {product.description && (
-                        <p className="text-gray-700 dark:text-gray-300 mb-2 leading-relaxed">
-                          {product.description}
-                        </p>
-                      )}
-                      
-                      {product.availability && (
-                        <div className="flex items-center text-sm bg-green-50 dark:bg-green-900/20 
-                                      rounded-full px-4 py-2 w-fit">
-                          <Clock className="h-4 w-4 mr-2 text-green-600" />
-                          <span className="text-green-700 dark:text-green-400 font-medium">
-                            {product.availability}
-                          </span>
-                        </div>
-                      )}
-                      
                     </div>
                   </div>
                 ))}

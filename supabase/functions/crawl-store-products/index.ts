@@ -19,6 +19,7 @@ interface ProductMatch {
   description?: string;
   availability?: string;
   url?: string;
+  image?: string;
 }
 
 // Extract products using OpenAI from a known search URL's raw text
@@ -35,6 +36,7 @@ Return a JSON array of objects in this format:
     "name": "iPhone 15 Pro 256GB",
     "price": "1.199,00€",
     "url": "https://...",
+    "image": "https://...",
     "availability": "in stock",
     "description": "..."
   },
