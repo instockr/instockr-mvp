@@ -439,8 +439,9 @@ const geocodeLocation = async (locationStr: string) => {
       console.log('Executing parallel searches across all channels...');
       const allResults = await Promise.all(searchPromises);
       
-      // Step 3: Combine all results and filter for physical stores only
+      // Step 3: Combine all results and separate pre-verified from unverified stores
       const combinedStores: Store[] = [];
+      const preVerifiedStores: Store[] = [];
       
       allResults.forEach((searchResult, index) => {
         console.log(`Processing search result ${index}:`, searchResult);
@@ -449,9 +450,28 @@ const geocodeLocation = async (locationStr: string) => {
           console.log(`Result ${index} (${searchResult.source}/${searchResult.strategy}) returned ${searchResult.result.data.stores.length} stores`);
           console.log(`Sample stores from result ${index}:`, searchResult.result.data.stores.slice(0, 2));
           
-          // Add all stores to combined list - let Google Maps verification handle validation
-          combinedStores.push(...searchResult.result.data.stores);
-          console.log(`Added ${searchResult.result.data.stores.length} stores from result ${index}`);
+          // If stores come from Google Maps, they're already verified
+          if (searchResult.source === 'google_maps') {
+            const storesWithVerification = searchResult.result.data.stores.map((store: any) => ({
+              ...store,
+              verification: {
+                verified: true,
+                googlePlaceId: store.place_id || `google-maps-${store.id}`,
+                rating: store.rating,
+                userRatingsTotal: store.userRatingsTotal,
+                isOpen: true, // We can assume it's open since it came from Google Maps
+                openingHours: [], // Would need additional API call for detailed hours
+                photoUrl: undefined,
+                website: undefined
+              }
+            }));
+            preVerifiedStores.push(...storesWithVerification);
+            console.log(`Added ${storesWithVerification.length} pre-verified stores from Google Maps result ${index}`);
+          } else {
+            // Other sources need verification
+            combinedStores.push(...searchResult.result.data.stores);
+            console.log(`Added ${searchResult.result.data.stores.length} stores from result ${index} for verification`);
+          }
         } else if (searchResult.result && searchResult.result.error) {
           console.error(`Search ${index} (${searchResult.source}/${searchResult.strategy}) failed:`, searchResult.result.error);
         } else {
@@ -459,12 +479,13 @@ const geocodeLocation = async (locationStr: string) => {
         }
       });
 
-      console.log(`Combined ${combinedStores.length} physical stores from all sources`);
+      console.log(`Combined ${combinedStores.length} stores needing verification, ${preVerifiedStores.length} pre-verified stores`);
 
-      // Step 4: Verify ALL stores with Google Maps first (to get accurate addresses)
+      // Step 4: Verify non-Google Maps stores only
+      let verifiedStores = [...preVerifiedStores]; // Start with pre-verified stores
+      
       if (combinedStores.length > 0) {
-        console.log('Step 4: Verifying all stores with Google Maps...');
-        const verifiedStores = [];
+        console.log('Step 4: Verifying non-Google Maps stores...');
         
         // Process stores in batches to avoid overwhelming the API
         for (let i = 0; i < combinedStores.length; i += 5) {
@@ -510,35 +531,40 @@ const geocodeLocation = async (locationStr: string) => {
           await new Promise(resolve => setTimeout(resolve, 200));
         }
         
-        console.log(`Google Maps verification: ${combinedStores.length} -> ${verifiedStores.length} verified stores`);
+        console.log(`Verification complete: ${combinedStores.length} -> ${verifiedStores.length - preVerifiedStores.length} newly verified stores`);
+      }
 
-        // Step 5: Simple address-based deduplication using verified addresses
-        console.log('Step 5: Simple address-based deduplication using verified addresses');
-        const deduplicationResponse = await supabase.functions.invoke('simple-deduplication', {
-          body: { stores: verifiedStores }
-        });
+      console.log(`Total verified stores: ${verifiedStores.length} (${preVerifiedStores.length} pre-verified + ${verifiedStores.length - preVerifiedStores.length} newly verified)`);
 
-        let finalStores = verifiedStores;
-        if (deduplicationResponse.data && deduplicationResponse.data.deduplicatedStores) {
-          finalStores = deduplicationResponse.data.deduplicatedStores;
-          console.log(`Simple deduplication: reduced from ${verifiedStores.length} to ${finalStores.length} stores`);
-        }
+      // Step 5: Simple address-based deduplication using verified addresses
+      console.log('Step 5: Simple address-based deduplication using verified addresses');
+      const deduplicationResponse = await supabase.functions.invoke('simple-deduplication', {
+        body: { stores: verifiedStores }
+      });
 
-        // Step 6: Sort by distance (closest first)
-        finalStores = finalStores.sort((a: any, b: any) => {
-          // Sort by distance (nulls/undefined last)
-          if (a.distance === null || a.distance === undefined) return 1;
-          if (b.distance === null || b.distance === undefined) return -1;
-          return a.distance - b.distance;
-        });
-        
-        console.log('Final stores sorted by distance (closest first):');
-        finalStores.slice(0, 5).forEach((store: any, index: number) => {
-          const storeName = store.store?.name || store.name || 'Unknown Store';
-          const distance = store.distance ? `${store.distance.toFixed(1)} km` : 'Distance unknown';
-          console.log(`${index + 1}. ${storeName} - ${distance}`);
-        });
+      let finalStores = verifiedStores;
+      if (deduplicationResponse.data && deduplicationResponse.data.deduplicatedStores) {
+        finalStores = deduplicationResponse.data.deduplicatedStores;
+        console.log(`Simple deduplication: reduced from ${verifiedStores.length} to ${finalStores.length} stores`);
+      }
 
+      // Step 6: Sort by distance (closest first)
+      finalStores = finalStores.sort((a: any, b: any) => {
+        // Sort by distance (nulls/undefined last)
+        if (a.distance === null || a.distance === undefined) return 1;
+        if (b.distance === null || b.distance === undefined) return -1;
+        return a.distance - b.distance;
+      });
+      
+      console.log('Final stores sorted by distance (closest first):');
+      finalStores.slice(0, 5).forEach((store: any, index: number) => {
+        const storeName = store.store?.name || store.name || 'Unknown Store';
+        const distance = store.distance ? `${store.distance.toFixed(1)} km` : 'Distance unknown';
+        console.log(`${index + 1}. ${storeName} - ${distance}`);
+      });
+
+      // Check if we have results
+      if (finalStores.length > 0) {
         // Set final results
         setResults({
           stores: finalStores,
