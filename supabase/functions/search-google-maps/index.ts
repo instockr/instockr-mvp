@@ -92,18 +92,26 @@ serve(async (req) => {
           hasWebsite: !!place.website
         });
 
-        // Get additional details including website using Place Details API
+        // Get additional details including website, phone, and opening hours using Place Details API
         let website = null;
         let phone = null;
+        let openingHours = [];
+        let isOpen = null;
         try {
-          const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=website,formatted_phone_number&key=${googleApiKey}`;
+          const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=website,formatted_phone_number,opening_hours&key=${googleApiKey}`;
           const detailsResponse = await fetch(detailsUrl);
           const detailsData = await detailsResponse.json();
           
           if (detailsData.status === 'OK' && detailsData.result) {
             website = detailsData.result.website || null;
             phone = detailsData.result.formatted_phone_number || null;
-            console.log(`Got details for ${place.name}:`, { website, phone });
+            
+            if (detailsData.result.opening_hours) {
+              openingHours = detailsData.result.opening_hours.weekday_text || [];
+              isOpen = detailsData.result.opening_hours.open_now || null;
+            }
+            
+            console.log(`Got details for ${place.name}:`, { website, phone, openingHours: openingHours.length, isOpen });
           }
         } catch (error) {
           console.error(`Failed to get details for place ${place.name}:`, error);
@@ -130,7 +138,9 @@ serve(async (req) => {
           rating: place.rating || null,
           userRatingsTotal: place.user_ratings_total || null,
           place_id: place.place_id,
-          photoUrl: photoUrl || undefined
+          photoUrl: photoUrl || undefined,
+          isOpen: isOpen,
+          openingHours: openingHours
         };
       };
 

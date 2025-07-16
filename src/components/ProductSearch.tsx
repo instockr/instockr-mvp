@@ -783,19 +783,19 @@ const geocodeLocation = async (locationStr: string) => {
                             <div className="flex items-center gap-2 mb-2">
                               <button
                                 onClick={() => {
-                                  const storeData = {
-                                    name: storeName,
-                                    address: storeAddress,
-                                    product: results?.searchedProduct || productName,
-                                    phone: storePhone,
-                                    website: (result as any).verification?.website,
-                                    storeType: (result as any).store?.store_type,
-                                    photoUrl: (result as any).verification?.photoUrl,
-                                    rating: (result as any).verification?.rating,
-                                    userRatingsTotal: (result as any).verification?.userRatingsTotal,
-                                    isOpen: (result as any).verification?.isOpen,
-                                    openingHours: (result as any).verification?.openingHours,
-                                  };
+                                   const storeData = {
+                                     name: storeName,
+                                     address: storeAddress,
+                                     product: results?.searchedProduct || productName,
+                                     phone: (result as any).phone || storePhone,
+                                     website: (result as any).url || (result as any).verification?.website,
+                                     storeType: (result as any).store_type || (result as any).store?.store_type,
+                                     photoUrl: (result as any).photoUrl || (result as any).verification?.photoUrl,
+                                     rating: (result as any).rating || (result as any).verification?.rating,
+                                     userRatingsTotal: (result as any).userRatingsTotal || (result as any).verification?.userRatingsTotal,
+                                     isOpen: (result as any).isOpen ?? (result as any).verification?.isOpen,
+                                     openingHours: (result as any).openingHours || (result as any).verification?.openingHours,
+                                   };
                                   navigate(`/store/${encodeURIComponent(storeName)}`, { state: storeData });
                                 }}
                                 className="text-xl font-semibold text-primary hover:underline cursor-pointer text-left"
@@ -853,18 +853,26 @@ const geocodeLocation = async (locationStr: string) => {
 
                           {/* RIGHT SIDE: Status and Actions */}
                           <div className="flex flex-col justify-between items-end min-w-[120px]">
-                            {/* Open Now tag at the top */}
-                            <div>
-                              {(result as any).verification && typeof (result as any).verification.isOpen === 'boolean' && (
-                                <Badge 
-                                  variant="outline" 
-                                  className={`${(result as any).verification.isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
-                                >
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  {(result as any).verification.isOpen ? 'Open Now' : 'Closed Now'}
-                                </Badge>
-                              )}
-                            </div>
+                             {/* Open Now tag at the top */}
+                             <div>
+                               {((result as any).isOpen !== undefined && (result as any).isOpen !== null) ? (
+                                 <Badge 
+                                   variant="outline" 
+                                   className={`${(result as any).isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
+                                 >
+                                   <Clock className="h-3 w-3 mr-1" />
+                                   {(result as any).isOpen ? 'Open Now' : 'Closed Now'}
+                                 </Badge>
+                               ) : (result as any).verification && typeof (result as any).verification.isOpen === 'boolean' && (
+                                 <Badge 
+                                   variant="outline" 
+                                   className={`${(result as any).verification.isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
+                                 >
+                                   <Clock className="h-3 w-3 mr-1" />
+                                   {(result as any).verification.isOpen ? 'Open Now' : 'Closed Now'}
+                                 </Badge>
+                               )}
+                             </div>
                             
                             {/* Action buttons centered vertically */}
                              <div className="flex-1 flex flex-col items-center justify-center gap-2 mt-4">
