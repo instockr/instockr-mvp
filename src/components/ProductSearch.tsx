@@ -720,23 +720,17 @@ const geocodeLocation = async (locationStr: string) => {
                   return null;
                 }
                 
-                console.log('Processing result:', index, result);
-                
                 // Check if we have proper store data
                 const hasLocalStructure = 'store' in result && result.store?.name;
                 const hasDirectStructure = 'name' in result && result.name;
                 
                 if (!hasLocalStructure && !hasDirectStructure) {
-                  console.error('Invalid store data - missing required fields:', result);
                   return null;
                 }
                 
                 if (!result.product?.name) {
-                  console.error('Invalid store data - missing product name:', result);
                   return null;
                 }
-                
-                console.log('Store passed validation, rendering card...');
                 
                 const storeName = (result as any).store?.name || (result as any).name || 'Unknown Store';
                 const storeAddress = (result as any).store?.address || (result as any).address || 'Address not available';
