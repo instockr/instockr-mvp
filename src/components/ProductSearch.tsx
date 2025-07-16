@@ -869,32 +869,18 @@ const geocodeLocation = async (locationStr: string) => {
                             {/* Action buttons centered vertically */}
                              <div className="flex-1 flex flex-col items-center justify-center gap-2 mt-4">
                                {/* Check for website from verification or direct store data */}
-                               {(() => {
-                                 const website = (result as any).verification?.website || (result as any).url;
-                                 console.log('Store website data:', {
-                                   storeName,
-                                   verificationWebsite: (result as any).verification?.website,
-                                   directUrl: (result as any).url,
-                                   finalWebsite: website,
-                                   fullResult: result
-                                 });
-                                 
-                                 if (website) {
-                                   return (
-                                     <Button variant="default" size="sm" asChild>
-                                       <a 
-                                         href={website} 
-                                         target="_blank" 
-                                         rel="noopener noreferrer"
-                                         className="flex items-center gap-2"
-                                       >
-                                         Visit Website <ExternalLink className="h-4 w-4" />
-                                       </a>
-                                     </Button>
-                                   );
-                                 }
-                                 return null;
-                               })()}
+                               {((result as any).verification?.website || (result as any).url) && (
+                                 <Button variant="default" size="sm" asChild>
+                                   <a 
+                                     href={(result as any).verification?.website || (result as any).url} 
+                                     target="_blank" 
+                                     rel="noopener noreferrer"
+                                     className="flex items-center gap-2"
+                                   >
+                                     Visit Website <ExternalLink className="h-4 w-4" />
+                                   </a>
+                                 </Button>
+                               )}
                               
                               {/* View on Maps button */}
                               {storeAddress && (
