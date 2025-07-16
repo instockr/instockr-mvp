@@ -131,6 +131,9 @@ export default function StoreDetail() {
       const cacheKey = `crawl-results-${storeData.name}-${storeData.product}`;
       sessionStorage.removeItem(cacheKey);
       
+      // Clear current results immediately
+      setProductMatches([]);
+      
       // Restart crawling
       crawlStoreForProducts(storeData.name, storeData.website, storeData.product);
       
