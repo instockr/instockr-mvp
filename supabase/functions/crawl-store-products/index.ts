@@ -31,7 +31,8 @@ async function extractProductsWithAI(url: string, productName: string): Promise<
     throw new Error('Missing OpenAI API key');
   }
   
-  console.log('✅ OpenAI API key found');
+  console.log('✅ OpenAI API key found, length:', openAIApiKey.length);
+  console.log('✅ OpenAI API key preview:', openAIApiKey.substring(0, 10) + '...');
 
   // Fetch the full HTML content of the search results page
   console.log(`📥 Fetching HTML from: ${url}`);
@@ -125,11 +126,14 @@ ${htmlSlice}
 }
 
 serve(async (req) => {
+  console.log('🚀 === CRAWL FUNCTION STARTED ===');
+  
   if (req.method === 'OPTIONS') {
+    console.log('📝 OPTIONS request - returning CORS headers');
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log('🚀 Crawl request received');
+  console.log('🚀 Crawl request received - processing POST request');
 
   try {
     const requestBody = await req.json();
