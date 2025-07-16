@@ -86,9 +86,11 @@ export default function StoreDetail() {
   }, [location.state, navigate, toast]);
 
   const crawlStoreForProducts = async (storeName: string, website: string, product: string) => {
+    console.log('🔥 FRONTEND: Starting crawl for:', { storeName, website, product });
     setIsLoading(true);
     
     try {
+      console.log('🔥 FRONTEND: Calling supabase.functions.invoke with crawl-store-products');
       const response = await supabase.functions.invoke('crawl-store-products', {
         body: {
           storeName,
@@ -96,6 +98,8 @@ export default function StoreDetail() {
           productName: product
         }
       });
+      
+      console.log('🔥 FRONTEND: Response received:', response);
 
       if (response.data?.products) {
         setProductMatches(response.data.products);
