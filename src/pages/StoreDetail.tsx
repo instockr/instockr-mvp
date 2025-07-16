@@ -51,7 +51,24 @@ export default function StoreDetail() {
       setSearchedProduct(stateData.product);
       setStoreData(stateData);
       
-      // Crawl the store's website for product matches if website is available
+      // Check for cached crawling results first
+      const cacheKey = `crawl-results-${stateData.name}-${stateData.product}`;
+      const cachedResults = sessionStorage.getItem(cacheKey);
+      
+      if (cachedResults) {
+        try {
+          const parsedResults = JSON.parse(cachedResults);
+          console.log('Using cached crawling results:', parsedResults);
+          setProductMatches(parsedResults);
+          setIsLoading(false);
+          return;
+        } catch (error) {
+          console.error('Error parsing cached crawling results:', error);
+          sessionStorage.removeItem(cacheKey);
+        }
+      }
+      
+      // Crawl the store's website for product matches if website is available and no cache
       if (stateData.website) {
         crawlStoreForProducts(stateData.name, stateData.website, stateData.product);
       } else {
@@ -81,6 +98,12 @@ export default function StoreDetail() {
 
       if (response.data?.products) {
         setProductMatches(response.data.products);
+        
+        // Cache the results for this session
+        const cacheKey = `crawl-results-${storeName}-${product}`;
+        sessionStorage.setItem(cacheKey, JSON.stringify(response.data.products));
+        console.log('Cached crawling results for:', cacheKey);
+        
       } else if (response.error) {
         console.error('Store crawling error:', response.error);
         toast({
