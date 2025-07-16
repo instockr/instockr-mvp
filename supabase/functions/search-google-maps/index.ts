@@ -84,6 +84,12 @@ serve(async (req) => {
             photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${googleApiKey}`;
           }
 
+          console.log('Processing place:', {
+            name: place.name,
+            website: place.website,
+            hasWebsite: !!place.website
+          });
+
           results.push({
             id: `google-maps-${Date.now()}-${index}`,
             name: place.name,
