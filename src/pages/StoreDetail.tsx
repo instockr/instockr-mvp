@@ -48,7 +48,8 @@ export default function StoreDetail() {
     const stateData = location.state as StoreData;
     
     if (stateData && stateData.name && stateData.address && stateData.product) {
-      console.log('Store data received:', stateData);
+      console.log('🔥 STORE DETAIL: Store data received:', stateData);
+      console.log('🔥 STORE DETAIL: Product name from state:', stateData.product);
       setSearchedProduct(stateData.product);
       setStoreData(stateData);
       
