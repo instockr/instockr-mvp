@@ -41,9 +41,6 @@ verify_jwt = false
 [functions.google-places-autocomplete]
 verify_jwt = false
 
-[functions.search-firecrawl]
-verify_jwt = false
-
 
 [functions.search-google-maps]
 verify_jwt = false

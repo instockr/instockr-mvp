@@ -418,19 +418,6 @@ const geocodeLocation = async (locationStr: string) => {
           searchPromises.push(searchPromise.then(result => ({ source: 'google_maps', strategy: searchTerm, result })));
         }
 
-
-        // FireCrawl web scraping for additional store discovery
-        for (const searchTerm of searchTerms) {
-          const firecrawlPromise = supabase.functions.invoke('search-firecrawl', {
-            body: {
-              productName: searchTerm,
-              location: locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : location,
-              userLat: locationCoords?.lat || 45.4642,
-              userLng: locationCoords?.lng || 9.19
-            }
-          });
-          searchPromises.push(firecrawlPromise.then(result => ({ source: 'firecrawl', strategy: searchTerm, result })));
-        }
         
         console.log(`Total search promises created: ${searchPromises.length}`);
       }
@@ -439,39 +426,31 @@ const geocodeLocation = async (locationStr: string) => {
       console.log('Executing parallel searches across all channels...');
       const allResults = await Promise.all(searchPromises);
       
-      // Step 3: Combine all results and separate pre-verified from unverified stores
-      const combinedStores: Store[] = [];
-      const preVerifiedStores: Store[] = [];
+      // Step 3: Combine all Google Maps results with pre-populated verification
+      const finalStores: Store[] = [];
       
       allResults.forEach((searchResult, index) => {
         console.log(`Processing search result ${index}:`, searchResult);
         
         if (searchResult.result && searchResult.result.data && searchResult.result.data.stores && Array.isArray(searchResult.result.data.stores)) {
           console.log(`Result ${index} (${searchResult.source}/${searchResult.strategy}) returned ${searchResult.result.data.stores.length} stores`);
-          console.log(`Sample stores from result ${index}:`, searchResult.result.data.stores.slice(0, 2));
           
-          // If stores come from Google Maps, they're already verified
-          if (searchResult.source === 'google_maps') {
-            const storesWithVerification = searchResult.result.data.stores.map((store: any) => ({
-              ...store,
-              verification: {
-                verified: true,
-                googlePlaceId: store.place_id || `google-maps-${store.id}`,
-                rating: store.rating,
-                userRatingsTotal: store.userRatingsTotal,
-                isOpen: true, // We can assume it's open since it came from Google Maps
-                openingHours: [], // Would need additional API call for detailed hours
-                photoUrl: store.photoUrl, // Use the photo URL from the store data
-                website: undefined
-              }
-            }));
-            preVerifiedStores.push(...storesWithVerification);
-            console.log(`Added ${storesWithVerification.length} pre-verified stores from Google Maps result ${index}`);
-          } else {
-            // Other sources need verification
-            combinedStores.push(...searchResult.result.data.stores);
-            console.log(`Added ${searchResult.result.data.stores.length} stores from result ${index} for verification`);
-          }
+          // All stores come from Google Maps, so they're already verified
+          const storesWithVerification = searchResult.result.data.stores.map((store: any) => ({
+            ...store,
+            verification: {
+              verified: true,
+              googlePlaceId: store.place_id || `google-maps-${store.id}`,
+              rating: store.rating,
+              userRatingsTotal: store.userRatingsTotal,
+              isOpen: true,
+              openingHours: [],
+              photoUrl: store.photoUrl,
+              website: undefined
+            }
+          }));
+          finalStores.push(...storesWithVerification);
+          console.log(`Added ${storesWithVerification.length} stores from Google Maps result ${index}`);
         } else if (searchResult.result && searchResult.result.error) {
           console.error(`Search ${index} (${searchResult.source}/${searchResult.strategy}) failed:`, searchResult.result.error);
         } else {
@@ -479,77 +458,10 @@ const geocodeLocation = async (locationStr: string) => {
         }
       });
 
-      console.log(`Combined ${combinedStores.length} stores needing verification, ${preVerifiedStores.length} pre-verified stores`);
+      console.log(`Total stores found: ${finalStores.length}`);
 
-      // Step 4: Verify non-Google Maps stores only
-      let verifiedStores = [...preVerifiedStores]; // Start with pre-verified stores
-      
-      if (combinedStores.length > 0) {
-        console.log('Step 4: Verifying non-Google Maps stores...');
-        
-        // Process stores in batches to avoid overwhelming the API
-        for (let i = 0; i < combinedStores.length; i += 5) {
-          const batch = combinedStores.slice(i, i + 5);
-          try {
-            for (const store of batch) {
-              const verificationResponse = await supabase.functions.invoke('verify-store-maps', {
-                body: { 
-                  storeName: (store as any).store?.name || (store as any).name,
-                  address: (store as any).store?.address || (store as any).address,
-                  latitude: (store as any).store?.latitude || (store as any).latitude,
-                  longitude: (store as any).store?.longitude || (store as any).longitude
-                }
-              });
-              
-              if (verificationResponse.data?.verified) {
-                let storeWithVerification = {
-                  ...store,
-                  verification: verificationResponse.data,
-                  // Update address with Google Maps verified address if available
-                  address: verificationResponse.data.address || (store as any).store?.address || (store as any).address
-                };
-                
-                // Calculate distance if coordinates are available
-                if (locationCoords && verificationResponse.data.latitude && verificationResponse.data.longitude) {
-                  const distance = calculateDistance(
-                    locationCoords.lat,
-                    locationCoords.lng,
-                    verificationResponse.data.latitude,
-                    verificationResponse.data.longitude
-                  );
-                  storeWithVerification = { ...storeWithVerification, distance };
-                }
-                
-                verifiedStores.push(storeWithVerification);
-              }
-            }
-          } catch (error) {
-            console.error(`Error verifying batch ${i}:`, error);
-          }
-          
-          // Small delay between batches
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-        
-        console.log(`Verification complete: ${combinedStores.length} -> ${verifiedStores.length - preVerifiedStores.length} newly verified stores`);
-      }
-
-      console.log(`Total verified stores: ${verifiedStores.length} (${preVerifiedStores.length} pre-verified + ${verifiedStores.length - preVerifiedStores.length} newly verified)`);
-
-      // Step 5: Simple address-based deduplication using verified addresses
-      console.log('Step 5: Simple address-based deduplication using verified addresses');
-      const deduplicationResponse = await supabase.functions.invoke('simple-deduplication', {
-        body: { stores: verifiedStores }
-      });
-
-      let finalStores = verifiedStores;
-      if (deduplicationResponse.data && deduplicationResponse.data.deduplicatedStores) {
-        finalStores = deduplicationResponse.data.deduplicatedStores;
-        console.log(`Simple deduplication: reduced from ${verifiedStores.length} to ${finalStores.length} stores`);
-      }
-
-      // Step 6: Sort by distance (closest first)
-      finalStores = finalStores.sort((a: any, b: any) => {
+      // Step 4: Sort by distance (closest first)
+      finalStores.sort((a: any, b: any) => {
         // Sort by distance (nulls/undefined last)
         if (a.distance === null || a.distance === undefined) return 1;
         if (b.distance === null || b.distance === undefined) return -1;
@@ -574,7 +486,7 @@ const geocodeLocation = async (locationStr: string) => {
 
         toast({
           title: "Search Complete",
-          description: `Found ${finalStores.length} stores with verified addresses`,
+          description: `Found ${finalStores.length} stores`,
         });
       } else {
         // No stores found
