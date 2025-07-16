@@ -867,7 +867,7 @@ const geocodeLocation = async (locationStr: string) => {
                             </div>
                             
                             {/* Action buttons centered vertically */}
-                            <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                            <div className="flex-1 flex flex-col items-center justify-center gap-2 mt-4">
                               {/* Check for website from verification or direct store data */}
                               {((result as any).verification?.website || (result as any).url) && (
                                 <Button variant="default" size="sm" asChild>
