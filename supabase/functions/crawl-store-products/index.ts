@@ -99,6 +99,7 @@ ${htmlSlice}`;
 
 // Main HTTP handler
 serve(async (req) => {
+  console.log('🔥🔥🔥 EDGE FUNCTION CALLED - This should appear in logs!');
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
