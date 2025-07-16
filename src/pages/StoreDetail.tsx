@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, MapPin, Phone, Clock, Globe, Loader2, Tag, DollarSign, Store, Star, Users } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Clock, Globe, Loader2, Tag, DollarSign, Store, Star, Users, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -122,6 +122,22 @@ export default function StoreDetail() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRefreshCrawling = () => {
+    if (storeData?.website) {
+      // Clear cache for this store/product combination
+      const cacheKey = `crawl-results-${storeData.name}-${storeData.product}`;
+      sessionStorage.removeItem(cacheKey);
+      
+      // Restart crawling
+      crawlStoreForProducts(storeData.name, storeData.website, storeData.product);
+      
+      toast({
+        title: "Refreshing",
+        description: "Re-crawling store website for products...",
+      });
     }
   };
 
@@ -262,12 +278,29 @@ export default function StoreDetail() {
         {/* Product Matches */}
         <div className="backdrop-blur-sm bg-white/30 dark:bg-black/30 rounded-2xl shadow-xl border border-white/20 overflow-hidden">
           <div className="bg-gradient-to-r from-purple-600/10 via-blue-600/10 to-teal-600/10 p-6 border-b border-white/10">
-            <h2 className="text-2xl font-bold flex items-center text-gray-800 dark:text-white">
-              <div className="p-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 mr-3">
-                <DollarSign className="h-5 w-5 text-white" />
-              </div>
-              Products matching "{searchedProduct}"
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold flex items-center text-gray-800 dark:text-white">
+                <div className="p-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 mr-3">
+                  <DollarSign className="h-5 w-5 text-white" />
+                </div>
+                Products matching "{searchedProduct}"
+              </h2>
+              
+              {storeData?.website && (
+                <Button
+                  onClick={handleRefreshCrawling}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 
+                           text-gray-800 dark:text-white hover:text-purple-600 
+                           shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              )}
+            </div>
           </div>
           
           <div className="p-6">
