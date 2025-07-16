@@ -868,10 +868,11 @@ const geocodeLocation = async (locationStr: string) => {
                             
                             {/* Action buttons centered vertically */}
                             <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                              {(result as any).verification?.website && (
+                              {/* Check for website from verification or direct store data */}
+                              {((result as any).verification?.website || (result as any).url) && (
                                 <Button variant="default" size="sm" asChild>
                                   <a 
-                                    href={(result as any).verification.website} 
+                                    href={(result as any).verification?.website || (result as any).url} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-2"
