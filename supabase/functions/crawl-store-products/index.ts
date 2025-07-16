@@ -30,71 +30,130 @@ async function extractProductsFromPageWithAI(url: string, productName: string): 
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openAIApiKey) throw new Error('Missing OpenAI API Key');
 
-  const html = await fetch(url).then(res => res.text());
-  console.log(`📄 HTML length: ${html.length} characters`);
-  console.log(`📝 HTML preview (first 1000 chars):\n${html.slice(0, 1000)}`);
-  
-  const htmlSlice = html.slice(0, 50000);
-  const prompt = `You are a smart extraction AI. Given the raw HTML content of a search page from an e-commerce website, extract all products that clearly match the term "${productName}". Only extract real products with actual prices.
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.log(`❌ Failed to fetch URL: ${response.status} ${response.statusText}`);
+      return [];
+    }
 
-Return a JSON array of objects in this format:
+    const html = await response.text();
+    console.log(`📄 HTML length: ${html.length} characters`);
+    console.log(`📝 HTML preview (first 1000 chars):\n${html.slice(0, 1000)}`);
+    
+    // Check if we got a meaningful page (not an error page)
+    if (html.includes('404') || html.includes('Not Found') || html.includes('Page Not Found') || html.length < 1000) {
+      console.log(`❌ Received error page or page too small`);
+      return [];
+    }
+    
+    const htmlSlice = html.slice(0, 50000);
+    const prompt = `You are a product extraction specialist. Analyze this HTML from an e-commerce website and extract ONLY real products that match "${productName}".
+
+CRITICAL RULES:
+- Extract ONLY products that actually exist on this page
+- If no matching products are found, return an empty array []
+- Do NOT invent or create fake products
+- Do NOT use placeholder URLs or made-up prices
+- Extract actual URLs, prices, and product names from the HTML
+
+Return ONLY a JSON array. If no products found, return [].
+
+Required format for found products:
 [
   {
-    "name": "iPhone 15 Pro 256GB",
-    "price": "1.199,00€",
-    "url": "https://...",
-    "image": "https://...",
-    "availability": "in stock",
-    "description": "..."
-  },
-  ...
+    "name": "exact product name from page",
+    "price": "exact price from page", 
+    "url": "actual product URL from page",
+    "image": "actual image URL from page",
+    "availability": "stock status if available",
+    "description": "product description if available"
+  }
 ]
 
-Here is the page content:
-
+HTML content:
 ${htmlSlice}`;
 
-  console.log(`🤖 Sending prompt to OpenAI (${prompt.length} chars)`);
+    console.log(`🤖 Sending prompt to OpenAI (${prompt.length} chars)`);
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: 'You extract structured product data from HTML pages.' },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0,
-      max_tokens: 1000,
-    }),
-  });
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a precise data extractor. Only extract real data that exists in the provided HTML. Never invent or hallucinate data.' 
+          },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0,
+        max_tokens: 1500,
+      }),
+    });
 
-  console.log(`🤖 OpenAI response status: ${res.status}`);
-  const data = await res.json();
-  console.log(`🤖 Full OpenAI response:`, JSON.stringify(data, null, 2));
-  
-  const content = data.choices[0].message.content;
-  console.log(`💬 OpenAI content:`, content);
-  console.log(`📋 COMPLETE LLM ANSWER (full response):`, JSON.stringify(content));
+    console.log(`🤖 OpenAI response status: ${res.status}`);
+    
+    if (!res.ok) {
+      const errorData = await res.json();
+      console.log(`❌ OpenAI API error:`, errorData);
+      if (res.status === 429) {
+        console.log(`❌ Rate limit exceeded`);
+      }
+      return [];
+    }
 
-  try {
-    const match = content.match(/\[.*\]/s);
-    if (match) {
-      console.log(`✅ Found JSON match: ${match[0]}`);
-      const products = JSON.parse(match[0]);
-      console.log(`✅ Parsed ${products.length} products:`, products);
-      return products;
-    } else {
-      console.log(`❌ No JSON array found in response`);
+    const data = await res.json();
+    console.log(`🤖 Full OpenAI response:`, JSON.stringify(data, null, 2));
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.log(`❌ Invalid OpenAI response structure`);
+      return [];
+    }
+    
+    const content = data.choices[0].message.content;
+    console.log(`💬 OpenAI content:`, content);
+    console.log(`📋 COMPLETE LLM ANSWER (full response):`, JSON.stringify(content));
+
+    try {
+      const match = content.match(/\[.*\]/s);
+      if (match) {
+        console.log(`✅ Found JSON match: ${match[0]}`);
+        const products = JSON.parse(match[0]);
+        console.log(`✅ Parsed ${products.length} products:`, products);
+        
+        // Validate that products have real URLs and aren't fake
+        const validProducts = products.filter((product: any) => {
+          const hasValidUrl = product.url && 
+            typeof product.url === 'string' && 
+            product.url.startsWith('http') &&
+            !product.url.includes('...') &&
+            !product.url.includes('example.com');
+            
+          const hasValidPrice = product.price && 
+            typeof product.price === 'string' &&
+            product.price.trim() !== '';
+            
+          return hasValidUrl && hasValidPrice;
+        });
+        
+        console.log(`✅ Filtered to ${validProducts.length} valid products`);
+        return validProducts;
+      } else {
+        console.log(`❌ No JSON array found in response`);
+        return [];
+      }
+    } catch (error) {
+      console.error('❌ Failed to parse JSON:', error);
+      console.error('❌ Content was:', content);
       return [];
     }
   } catch (error) {
-    console.error('❌ Failed to parse JSON:', error);
-    console.error('❌ Content was:', content);
+    console.error('❌ Error in extractProductsFromPageWithAI:', error);
     return [];
   }
 }
