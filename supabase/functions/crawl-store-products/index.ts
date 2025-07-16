@@ -106,8 +106,32 @@ serve(async (req) => {
       );
     }
 
-    // Construct the search URL for Saturn
-    const searchUrl = `${website.replace(/\/$/, '')}/de/search.html?query=${encodeURIComponent(productName)}`;
+    console.log(`Crawling ${storeName} for ${productName} at ${website}`);
+
+    // Determine the appropriate search URL based on the website
+    let searchUrl: string;
+    const baseUrl = new URL(website).origin;
+    
+    if (website.includes('apple.com') && website.includes('/retail/')) {
+      // Apple retail stores - try their main product search
+      searchUrl = `https://www.apple.com/de/search/${encodeURIComponent(productName)}?tab=products`;
+    } else if (website.includes('saturn.de')) {
+      // Saturn - use their search endpoint
+      searchUrl = `https://www.saturn.de/de/search.html?query=${encodeURIComponent(productName)}`;
+    } else if (website.includes('mediamarkt.de')) {
+      // MediaMarkt - use their search endpoint  
+      searchUrl = `https://www.mediamarkt.de/de/search.html?query=${encodeURIComponent(productName)}`;
+    } else {
+      // Generic approach - try common search patterns
+      const domain = new URL(website).hostname;
+      if (domain.includes('.de')) {
+        searchUrl = `${baseUrl}/de/search?q=${encodeURIComponent(productName)}`;
+      } else {
+        searchUrl = `${baseUrl}/search?q=${encodeURIComponent(productName)}`;
+      }
+    }
+
+    console.log(`Using search URL: ${searchUrl}`);
 
     // Use AI to extract products from the search results page
     const products = await extractProductsWithAI(searchUrl, productName);
