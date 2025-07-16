@@ -460,8 +460,22 @@ const geocodeLocation = async (locationStr: string) => {
 
       console.log(`Total stores found: ${finalStores.length}`);
 
-      // Step 4: Sort by distance (closest first)
-      finalStores.sort((a: any, b: any) => {
+      // Step 4: Deduplicate stores by address
+      console.log('Deduplicating stores by address...');
+      const deduplicationResponse = await supabase.functions.invoke('simple-deduplication', {
+        body: { stores: finalStores }
+      });
+
+      let deduplicatedStores = finalStores;
+      if (deduplicationResponse.data?.deduplicatedStores) {
+        deduplicatedStores = deduplicationResponse.data.deduplicatedStores;
+        console.log(`Deduplication: reduced from ${finalStores.length} to ${deduplicatedStores.length} stores`);
+      } else {
+        console.warn('Deduplication failed, using original stores');
+      }
+
+      // Step 5: Sort by distance (closest first)
+      deduplicatedStores.sort((a: any, b: any) => {
         // Sort by distance (nulls/undefined last)
         if (a.distance === null || a.distance === undefined) return 1;
         if (b.distance === null || b.distance === undefined) return -1;
@@ -469,24 +483,24 @@ const geocodeLocation = async (locationStr: string) => {
       });
       
       console.log('Final stores sorted by distance (closest first):');
-      finalStores.slice(0, 5).forEach((store: any, index: number) => {
+      deduplicatedStores.slice(0, 5).forEach((store: any, index: number) => {
         const storeName = store.store?.name || store.name || 'Unknown Store';
         const distance = store.distance ? `${store.distance.toFixed(1)} km` : 'Distance unknown';
         console.log(`${index + 1}. ${storeName} - ${distance}`);
       });
 
       // Check if we have results
-      if (finalStores.length > 0) {
+      if (deduplicatedStores.length > 0) {
         // Set final results
         setResults({
-          stores: finalStores,
+          stores: deduplicatedStores,
           searchedProduct: productName,
-          totalResults: finalStores.length
+          totalResults: deduplicatedStores.length
         });
 
         toast({
           title: "Search Complete",
-          description: `Found ${finalStores.length} stores`,
+          description: `Found ${deduplicatedStores.length} stores`,
         });
       } else {
         // No stores found
