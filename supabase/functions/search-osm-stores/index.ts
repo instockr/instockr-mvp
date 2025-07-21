@@ -47,8 +47,7 @@ serve(async (req) => {
       'shop=variety_store',
       'shop=convenience',
       'shop=supermarket',
-      'amenity=marketplace',
-      'shop=*' // This will find ANY shop
+      'amenity=marketplace'
     ];
     storeCategories = [...storeCategories, ...broadCategories];
     console.log('Final OSM categories to search:', storeCategories);
