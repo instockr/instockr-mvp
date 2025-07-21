@@ -68,7 +68,7 @@ export function ProductSearch() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Google Maps Places Autocomplete
+  // OpenStreetMap Location Autocomplete
   const fetchLocationSuggestions = async (input: string) => {
     if (input.length < 3) {
       setLocationSuggestions([]);
@@ -78,7 +78,7 @@ export function ProductSearch() {
 
     setIsLoadingSuggestions(true);
     try {
-      const response = await supabase.functions.invoke('google-places-autocomplete', {
+      const response = await supabase.functions.invoke('osm-location-autocomplete', {
         body: { input }
       });
 
@@ -369,8 +369,8 @@ const geocodeLocation = async (locationStr: string) => {
 
       if (strategiesResponse.error) {
         console.log('Strategy generation failed, using basic search');
-        // Fallback to basic database search
-        const fallbackPromise = supabase.functions.invoke('search-google-maps', {
+        // Fallback to basic search
+        const fallbackPromise = supabase.functions.invoke('search-osm-stores', {
           body: {
             productName: productName.trim(),
             userLat: locationCoords?.lat || 45.4642, // Default to Milan if no coords
@@ -389,8 +389,8 @@ const geocodeLocation = async (locationStr: string) => {
 
         // Create promises for each search term and channel
         for (const searchTerm of searchTerms) {
-          // Google Maps search for physical stores
-          const searchPromise = supabase.functions.invoke('search-google-maps', {
+          // OpenStreetMap search for physical stores
+          const searchPromise = supabase.functions.invoke('search-osm-stores', {
             body: {
               productName: searchTerm,
               userLat: locationCoords?.lat || 45.4642,
@@ -398,7 +398,7 @@ const geocodeLocation = async (locationStr: string) => {
               radius: 50
             }
           });
-          searchPromises.push(searchPromise.then(result => ({ source: 'google_maps', strategy: searchTerm, result })));
+          searchPromises.push(searchPromise.then(result => ({ source: 'openstreetmap', strategy: searchTerm, result })));
         }
 
         
@@ -409,23 +409,23 @@ const geocodeLocation = async (locationStr: string) => {
       console.log('Executing parallel searches across all channels...');
       const allResults = await Promise.all(searchPromises);
       
-      // Step 3: Combine all Google Maps results with pre-populated verification
+      // Step 3: Combine all OpenStreetMap results
       const finalStores: Store[] = [];
       
       allResults.forEach((searchResult, index) => {
         if (searchResult.result && searchResult.result.data && searchResult.result.data.stores && Array.isArray(searchResult.result.data.stores)) {
-          // All stores come from Google Maps, so they're already verified
+          // All stores come from OpenStreetMap
           const storesWithVerification = searchResult.result.data.stores.map((store: any) => ({
             ...store,
             verification: {
               verified: true,
-              googlePlaceId: store.place_id || `google-maps-${store.id}`,
+              osmId: store.place_id || `osm-${store.id}`,
               rating: store.rating,
               userRatingsTotal: store.userRatingsTotal,
-              isOpen: true,
-              openingHours: [],
+              isOpen: store.isOpen,
+              openingHours: store.openingHours || [],
               photoUrl: store.photoUrl,
-              website: undefined
+              website: store.url
             }
           }));
           finalStores.push(...storesWithVerification);
