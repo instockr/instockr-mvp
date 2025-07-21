@@ -195,6 +195,9 @@ serve(async (req) => {
     const seenStores = new Set();
 
     for (const store of results) {
+      // Limit to 50 results to prevent frontend crashes
+      if (uniqueResults.length >= 50) break;
+      
       const key = `${store.name}-${Math.round(store.latitude * 1000)}-${Math.round(store.longitude * 1000)}`;
       if (!seenStores.has(key)) {
         seenStores.add(key);
