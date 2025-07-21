@@ -45,16 +45,16 @@ serve(async (req) => {
     console.log('Generated search terms:', searchTerms);
 
     // Map search terms to OSM store categories
-    const storeCategories = mapTermsToOSMCategories(searchTerms);
+    let storeCategories = mapTermsToOSMCategories(searchTerms);
     console.log('Mapped OSM categories:', storeCategories);
 
     if (storeCategories.length === 0) {
       console.log('No OSM categories found, using fallback');
-      storeCategories.push('shop=electronics', 'shop=mobile_phone', 'shop=computer');
+      storeCategories = ['shop=electronics', 'shop=mobile_phone', 'shop=computer'];
     }
 
     // Test with common Italian store types that might have electronics
-    storeCategories.push('shop=general', 'shop=department_store', 'shop=variety_store');
+    storeCategories = [...storeCategories, 'shop=general', 'shop=department_store', 'shop=variety_store'];
     console.log('Final OSM categories to search:', storeCategories);
 
     const results = [];
