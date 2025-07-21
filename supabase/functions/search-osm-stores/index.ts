@@ -46,6 +46,16 @@ serve(async (req) => {
 
     // Map search terms to OSM store categories
     const storeCategories = mapTermsToOSMCategories(searchTerms);
+    console.log('Mapped OSM categories:', storeCategories);
+
+    if (storeCategories.length === 0) {
+      console.log('No OSM categories found, using fallback');
+      storeCategories.push('shop=electronics', 'shop=mobile_phone', 'shop=computer');
+    }
+
+    // Test with common Italian store types that might have electronics
+    storeCategories.push('shop=general', 'shop=department_store', 'shop=variety_store');
+    console.log('Final OSM categories to search:', storeCategories);
 
     const results = [];
     const radiusMeters = radius * 1000;
@@ -53,6 +63,7 @@ serve(async (req) => {
     // Search for each store category using Overpass API
     for (const category of storeCategories) {
       try {
+        console.log(`Searching OSM for category: ${category}`);
         // Build Overpass query for stores in the area
         const overpassQuery = `
           [out:json][timeout:25];
@@ -63,6 +74,8 @@ serve(async (req) => {
           );
           out center tags;
         `;
+        
+        console.log(`Overpass query: ${overpassQuery.trim()}`);
 
         const overpassUrl = 'https://overpass-api.de/api/interpreter';
         const response = await fetch(overpassUrl, {
@@ -80,8 +93,10 @@ serve(async (req) => {
         }
 
         const data = await response.json();
+        console.log(`OSM response for ${category}:`, JSON.stringify(data, null, 2));
         
         if (data.elements && Array.isArray(data.elements)) {
+          console.log(`Found ${data.elements.length} elements for ${category}`);
           for (const element of data.elements) {
             const lat = element.lat || element.center?.lat;
             const lon = element.lon || element.center?.lon;
