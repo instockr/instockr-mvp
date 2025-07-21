@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { productName, userLat, userLng, radius = 50 } = await req.json();
+    const { productName, userLat, userLng, radius = 50, location } = await req.json();
 
     if (!productName || !userLat || !userLng) {
       return new Response(
@@ -22,22 +23,29 @@ serve(async (req) => {
 
     console.log('Searching OpenStreetMap for:', productName, 'near', userLat, userLng);
 
-    // Define store categories to search for
-    const storeCategories = [
-      'shop=supermarket',
-      'shop=convenience', 
-      'shop=department_store',
-      'shop=electronics',
-      'shop=mobile_phone',
-      'shop=computer',
-      'shop=hardware',
-      'shop=doityourself',
-      'shop=pharmacy',
-      'shop=chemist',
-      'shop=general',
-      'shop=variety_store',
-      'amenity=pharmacy'
-    ];
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    // Get relevant search terms using AI
+    const { data: searchStrategies, error: strategiesError } = await supabase.functions.invoke('generate-search-strategies', {
+      body: { productName, location }
+    });
+
+    if (strategiesError) {
+      console.error('Error getting search strategies:', strategiesError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate search strategies' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const searchTerms = searchStrategies?.searchTerms || [];
+    console.log('Generated search terms:', searchTerms);
+
+    // Map search terms to OSM store categories
+    const storeCategories = mapTermsToOSMCategories(searchTerms);
 
     const results = [];
     const radiusMeters = radius * 1000;
@@ -191,3 +199,89 @@ serve(async (req) => {
     );
   }
 });
+
+function mapTermsToOSMCategories(searchTerms: string[]): string[] {
+  const osmCategories: string[] = [];
+  
+  for (const term of searchTerms) {
+    const lowerTerm = term.toLowerCase();
+    
+    // Electronics & Technology
+    if (lowerTerm.includes('elektronik') || lowerTerm.includes('elettronica') || 
+        lowerTerm.includes('électronique') || lowerTerm.includes('electrónica') || 
+        lowerTerm.includes('electronics')) {
+      osmCategories.push('shop=electronics');
+    }
+    
+    if (lowerTerm.includes('handyladen') || lowerTerm.includes('telefonia') || 
+        lowerTerm.includes('téléphonie') || lowerTerm.includes('telefonía') || 
+        lowerTerm.includes('mobile')) {
+      osmCategories.push('shop=mobile_phone');
+    }
+    
+    if (lowerTerm.includes('computer') || lowerTerm.includes('informatica') || 
+        lowerTerm.includes('informatique') || lowerTerm.includes('informática')) {
+      osmCategories.push('shop=computer');
+    }
+    
+    // Hardware & Tools  
+    if (lowerTerm.includes('baumarkt') || lowerTerm.includes('ferramenta') || 
+        lowerTerm.includes('quincaillerie') || lowerTerm.includes('ferretería') || 
+        lowerTerm.includes('hardware')) {
+      osmCategories.push('shop=hardware');
+      osmCategories.push('shop=doityourself');
+    }
+    
+    if (lowerTerm.includes('eisenwaren') || lowerTerm.includes('bricolage') || 
+        lowerTerm.includes('bricolaje') || lowerTerm.includes('tools') || 
+        lowerTerm.includes('werkzeug') || lowerTerm.includes('outillage') || 
+        lowerTerm.includes('herramientas')) {
+      osmCategories.push('shop=hardware');
+    }
+    
+    // Health & Medicine
+    if (lowerTerm.includes('apotheke') || lowerTerm.includes('farmacia') || 
+        lowerTerm.includes('pharmacie') || lowerTerm.includes('pharmacy')) {
+      osmCategories.push('shop=pharmacy');
+      osmCategories.push('amenity=pharmacy');
+    }
+    
+    if (lowerTerm.includes('drogerie') || lowerTerm.includes('parafarmacia') || 
+        lowerTerm.includes('parapharmacie') || lowerTerm.includes('drugstore')) {
+      osmCategories.push('shop=chemist');
+    }
+    
+    // Books & Stationery
+    if (lowerTerm.includes('buchhandlung') || lowerTerm.includes('libreria') || 
+        lowerTerm.includes('librairie') || lowerTerm.includes('librería') || 
+        lowerTerm.includes('bookstore')) {
+      osmCategories.push('shop=books');
+    }
+    
+    if (lowerTerm.includes('schreibwaren') || lowerTerm.includes('cartoleria') || 
+        lowerTerm.includes('papeterie') || lowerTerm.includes('papelería') || 
+        lowerTerm.includes('stationery')) {
+      osmCategories.push('shop=stationery');
+    }
+    
+    // Food & Groceries
+    if (lowerTerm.includes('supermarkt') || lowerTerm.includes('supermercato') || 
+        lowerTerm.includes('supermarché') || lowerTerm.includes('supermercado') || 
+        lowerTerm.includes('supermarket') || lowerTerm.includes('grocery')) {
+      osmCategories.push('shop=supermarket');
+    }
+    
+    if (lowerTerm.includes('lebensmittel') || lowerTerm.includes('alimentari') || 
+        lowerTerm.includes('alimentation') || lowerTerm.includes('alimentación')) {
+      osmCategories.push('shop=convenience');
+    }
+  }
+  
+  // Fallback: if no categories found, add some general ones
+  if (osmCategories.length === 0) {
+    osmCategories.push('shop=general', 'shop=variety_store');
+  }
+  
+  // Remove duplicates and return
+  return [...new Set(osmCategories)];
+}

@@ -375,7 +375,8 @@ const geocodeLocation = async (locationStr: string) => {
             productName: productName.trim(),
             userLat: locationCoords?.lat || 45.4642, // Default to Milan if no coords
             userLng: locationCoords?.lng || 9.19,
-            radius: 50
+            radius: 50,
+            location: location
           }
         });
         searchPromises.push(fallbackPromise.then(result => ({ source: 'local_db_fallback', strategy: 'fallback', result })));
@@ -395,7 +396,8 @@ const geocodeLocation = async (locationStr: string) => {
               productName: searchTerm,
               userLat: locationCoords?.lat || 45.4642,
               userLng: locationCoords?.lng || 9.19,
-              radius: 50
+              radius: 50,
+              location: location
             }
           });
           searchPromises.push(searchPromise.then(result => ({ source: 'openstreetmap', strategy: searchTerm, result })));
