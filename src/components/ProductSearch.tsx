@@ -775,12 +775,12 @@ const geocodeLocation = async (locationStr: string) => {
                               >
                                 {storeName}
                               </button>
-                              {result.product.name && (
-                                <Badge variant="outline" className="text-xs px-2 py-1 bg-primary/10 text-primary border-primary/20 flex items-center gap-1">
-                                  <Tag className="h-3 w-3" />
-                                  {result.product.name}
-                                </Badge>
-                              )}
+                               {(result as any).channel && (
+                                 <Badge variant="outline" className="text-xs px-2 py-1 bg-secondary/10 text-secondary-foreground border-secondary/20 flex items-center gap-1">
+                                   <Tag className="h-3 w-3" />
+                                   {(result as any).channel}
+                                 </Badge>
+                               )}
                             </div>
                             
                             {/* Location */}
