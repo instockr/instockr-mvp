@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { productName, userLat, userLng, radius = 50, location } = await req.json();
+    const { productName, userLat, userLng, radius = 50, location, searchTerms } = await req.json();
 
     if (!productName || !userLat || !userLng) {
       return new Response(
@@ -23,29 +22,17 @@ serve(async (req) => {
 
     console.log('Searching OpenStreetMap for:', productName, 'near', userLat, userLng);
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    // Get relevant search terms using AI
-    const { data: searchStrategies, error: strategiesError } = await supabase.functions.invoke('generate-search-strategies', {
-      body: { productName, location }
-    });
-
-    if (strategiesError) {
-      console.error('Error getting search strategies:', strategiesError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate search strategies' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Use provided search terms or map the product name directly to OSM categories
+    let storeCategories: string[] = [];
+    
+    if (searchTerms && Array.isArray(searchTerms)) {
+      console.log('Using provided search terms:', searchTerms);
+      storeCategories = mapTermsToOSMCategories(searchTerms);
+    } else {
+      console.log('No search terms provided, mapping product name directly');
+      storeCategories = mapTermsToOSMCategories([productName]);
     }
-
-    const searchTerms = searchStrategies?.searchTerms || [];
-    console.log('Generated search terms:', searchTerms);
-
-    // Map search terms to OSM store categories
-    let storeCategories = mapTermsToOSMCategories(searchTerms);
+    
     console.log('Mapped OSM categories:', storeCategories);
 
     if (storeCategories.length === 0) {
@@ -53,7 +40,7 @@ serve(async (req) => {
       storeCategories = ['shop=electronics', 'shop=mobile_phone', 'shop=computer'];
     }
 
-    // Test with common Italian store types that might have electronics
+    // Test with common Italian store types that might have electronics  
     storeCategories = [...storeCategories, 'shop=general', 'shop=department_store', 'shop=variety_store'];
     console.log('Final OSM categories to search:', storeCategories);
 
