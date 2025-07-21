@@ -61,15 +61,29 @@ serve(async (req) => {
       try {
         console.log(`Searching OSM for category: ${category}`);
         // Build Overpass query for stores in the area
-        const overpassQuery = `
-          [out:json][timeout:25];
-          (
-            node["${category}"](around:${radiusMeters},${userLat},${userLng});
-            way["${category}"](around:${radiusMeters},${userLat},${userLng});
-            relation["${category}"](around:${radiusMeters},${userLat},${userLng});
-          );
-          out center tags;
-        `;
+        let overpassQuery;
+        if (category === 'shop=*') {
+          // Special query for any shop
+          overpassQuery = `
+            [out:json][timeout:25];
+            (
+              node["shop"](around:${radiusMeters},${userLat},${userLng});
+              way["shop"](around:${radiusMeters},${userLat},${userLng});
+              relation["shop"](around:${radiusMeters},${userLat},${userLng});
+            );
+            out center tags;
+          `;
+        } else {
+          overpassQuery = `
+            [out:json][timeout:25];
+            (
+              node["${category}"](around:${radiusMeters},${userLat},${userLng});
+              way["${category}"](around:${radiusMeters},${userLat},${userLng});
+              relation["${category}"](around:${radiusMeters},${userLat},${userLng});
+            );
+            out center tags;
+          `;
+        }
         
         console.log(`Overpass query: ${overpassQuery.trim()}`);
 
