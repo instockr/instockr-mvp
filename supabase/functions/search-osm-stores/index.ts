@@ -206,86 +206,12 @@ serve(async (req) => {
     }
 
     // Search OpenCorporates API for business information
-    console.log('Searching OpenCorporates for businesses...');
-    try {
-      // Determine country code from location
-      let countryCode = 'us'; // default
-      if (location) {
-        const loc = location.toLowerCase();
-        if (loc.includes('deutschland') || loc.includes('germany')) countryCode = 'de';
-        else if (loc.includes('france')) countryCode = 'fr';
-        else if (loc.includes('uk') || loc.includes('united kingdom')) countryCode = 'gb';
-        else if (loc.includes('spain') || loc.includes('españa')) countryCode = 'es';
-        else if (loc.includes('italy') || loc.includes('italia')) countryCode = 'it';
-      }
-
-      const opencorporatesUrl = `https://api.opencorporates.com/v0.4/companies/search?q=${encodeURIComponent(productName)}&jurisdiction_code=${countryCode}&per_page=20`;
-      
-      console.log(`OpenCorporates query: ${opencorporatesUrl}`);
-      
-      const response = await fetch(opencorporatesUrl);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`OpenCorporates found ${data.results?.companies?.length || 0} companies`);
-        
-        if (data.results && data.results.companies) {
-          for (const companyData of data.results.companies) {
-            const company = companyData.company;
-            if (!company.name) continue;
-
-            // Create a synthetic address from available data
-            let address = 'Address not available';
-            if (company.registered_address_in_full) {
-              address = company.registered_address_in_full;
-            } else if (company.registered_address) {
-              const addressParts = [];
-              Object.values(company.registered_address).forEach(part => {
-                if (part && typeof part === 'string') addressParts.push(part);
-              });
-              if (addressParts.length > 0) address = addressParts.join(', ');
-            }
-
-            // For distance, we'll use a placeholder since we don't have exact coordinates
-            const distance = Math.random() * 15 + 1; // Random distance between 1-16 km
-
-            results.push({
-              id: `oc-${company.company_number}`,
-              name: company.name,
-              store_type: 'business',
-              address: address,
-              distance: Math.round(distance * 100) / 100,
-              latitude: userLat, // placeholder coordinates
-              longitude: userLng, // placeholder coordinates
-              phone: null,
-              product: {
-                name: productName,
-                price: 'Contact business for pricing',
-                description: `${productName} - business information`,
-                availability: 'Contact business for availability'
-              },
-              url: null,
-              isOnline: false,
-              source: 'OpenCorporates',
-              channel: 'opencorporates',
-              rating: null,
-              userRatingsTotal: null,
-              place_id: `oc-${company.company_number}`,
-              photoUrl: undefined,
-              isOpen: null,
-              openingHours: [],
-              company_status: company.current_status,
-              incorporation_date: company.incorporation_date,
-              jurisdiction: company.jurisdiction_code
-            });
-          }
-        }
-      } else {
-        console.error(`OpenCorporates API error: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('Error querying OpenCorporates API:', error);
-    }
+    // NOTE: OpenCorporates requires an API key even for basic access (401 errors without authentication)
+    // For now, this channel is disabled until we can get proper API credentials
+    console.log('OpenCorporates channel temporarily disabled (requires API key)');
+    
+    // TODO: Add alternative free business directory API here
+    // Possible alternatives: Foursquare Places API, Google Places API (with key), or other business directories
 
     // Remove duplicates based on name and location proximity
     const uniqueResults = [];
