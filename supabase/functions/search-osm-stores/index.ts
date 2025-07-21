@@ -40,8 +40,17 @@ serve(async (req) => {
       storeCategories = ['shop=electronics', 'shop=mobile_phone', 'shop=computer'];
     }
 
-    // Test with common Italian store types that might have electronics  
-    storeCategories = [...storeCategories, 'shop=general', 'shop=department_store', 'shop=variety_store'];
+    // Add broad store categories that are commonly tagged in OSM
+    const broadCategories = [
+      'shop=general', 
+      'shop=department_store', 
+      'shop=variety_store',
+      'shop=convenience',
+      'shop=supermarket',
+      'amenity=marketplace',
+      'shop=*' // This will find ANY shop
+    ];
+    storeCategories = [...storeCategories, ...broadCategories];
     console.log('Final OSM categories to search:', storeCategories);
 
     const results = [];
