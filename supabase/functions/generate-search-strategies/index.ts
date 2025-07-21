@@ -13,120 +13,135 @@ serve(async (req) => {
 
   try {
     const { productName, location } = await req.json();
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-
-    if (!openAIApiKey) {
-      console.log('OpenAI API key not found, using fallback search terms');
-      return new Response(JSON.stringify(generateFallbackSearchTerms(productName, location)), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     console.log('Generating search terms for:', productName, 'in location:', location);
-
-    const prompt = `You are an expert at identifying which types of physical stores sell specific products. 
-
-Given the product "${productName}" and location "${location}", identify the 2 most relevant types of physical stores that would actually sell this specific product.
-
-CRITICAL RULES:
-1. Think carefully about what the product actually IS and where it would realistically be sold
-2. Return ONLY specific store categories, NOT generic terms like "negozi" (stores) or "shops"
-3. Use the local language appropriate for the location - THIS IS CRITICAL
-4. Maximum 2 categories that are the MOST likely to have this product
-
-Language Guidelines:
-- Germany/Austria/Switzerland (German areas): Use German store category terms
-- Italy: Use Italian store category terms
-- France/Belgium (French areas): Use French store category terms
-- Spain: Use Spanish store category terms
-- English-speaking countries: Use English terms
-- Other locations: Use English as default
-
-DETAILED EXAMPLES by product type and location:
-
-Electronics & Technology:
-- "iPhone" in Germany → ["elektronik", "handyladen"]
-- "smartphone" in Italy → ["elettronica", "telefonia"]
-- "laptop" in France → ["informatique", "électronique"]
-- "headphones" in Germany → ["elektronik", "multimedia"]
-
-Hardware & Tools:
-- "duct tape" in Germany → ["baumarkt", "eisenwaren"]
-- "nastro adesivo" in Italy → ["ferramenta", "bricolage"]
-- "tournevis" in France → ["quincaillerie", "bricolage"] 
-- "drill" in English → ["hardware", "tools"]
-
-Health & Medicine:
-- "aspirin" in Germany → ["apotheke", "drogerie"]
-- "aspirina" in Italy → ["farmacia", "parafarmacia"]
-- "vitamines" in France → ["pharmacie", "parapharmacie"]
-
-Home & Garden:
-- "paint" in Germany → ["baumarkt", "farben"]
-- "paint" in English → ["hardware", "paint store"]
-- "vernice" in Italy → ["ferramenta", "vernici"]
-
-Return a JSON object with this structure:
-{
-  "searchTerms": ["category1", "category2"]
-}
-
-Product: ${productName}
-Location: ${location}`;
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a search term generator for finding physical stores worldwide. Return only valid JSON with store categories in the appropriate local language.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 500,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      return new Response(JSON.stringify(generateFallbackSearchTerms(productName, location)), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const data = await response.json();
-    console.log('OpenAI response:', data);
     
-    let parsedContent;
-    try {
-      parsedContent = JSON.parse(data.choices[0].message.content);
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', parseError);
-      parsedContent = generateFallbackSearchTerms(productName, location);
-    }
+    // Use direct mapping to valid OSM shop categories
+    const searchTerms = generateOSMSearchTerms(productName, location);
     
-    return new Response(JSON.stringify(parsedContent), {
+    return new Response(JSON.stringify({ searchTerms }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Error in generate-search-strategies function:', error);
-    return new Response(JSON.stringify(generateFallbackSearchTerms(productName, location)), {
+    return new Response(JSON.stringify({ searchTerms: ['shop=electronics', 'shop=mobile_phone'] }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
+
+function generateOSMSearchTerms(productName: string, location?: string): string[] {
+  console.log('Generating OSM search terms for:', productName, 'in location:', location);
+  
+  const lowerProductName = productName.toLowerCase();
+  const searchTerms: string[] = [];
+
+  // Electronics & Technology
+  if (lowerProductName.includes('phone') || lowerProductName.includes('smartphone') || lowerProductName.includes('iphone') || lowerProductName.includes('cellulare')) {
+    searchTerms.push('shop=mobile_phone', 'shop=electronics');
+  }
+  else if (lowerProductName.includes('computer') || lowerProductName.includes('laptop') || lowerProductName.includes('pc')) {
+    searchTerms.push('shop=computer', 'shop=electronics');
+  }
+  else if (lowerProductName.includes('camera') || lowerProductName.includes('photo')) {
+    searchTerms.push('shop=camera', 'shop=electronics');
+  }
+  else if (lowerProductName.includes('tv') || lowerProductName.includes('television') || lowerProductName.includes('hifi')) {
+    searchTerms.push('shop=hifi', 'shop=electronics');
+  }
+  else if (lowerProductName.includes('video') || lowerProductName.includes('games') || lowerProductName.includes('gaming')) {
+    searchTerms.push('shop=video_games', 'shop=electronics');
+  }
+  
+  // Hardware & Tools
+  else if (lowerProductName.includes('tool') || lowerProductName.includes('hammer') || lowerProductName.includes('drill') || lowerProductName.includes('tape') || lowerProductName.includes('duct')) {
+    searchTerms.push('shop=hardware', 'shop=doityourself');
+  }
+  else if (lowerProductName.includes('paint') || lowerProductName.includes('vernice')) {
+    searchTerms.push('shop=paint', 'shop=hardware');
+  }
+  
+  // Health & Medicine
+  else if (lowerProductName.includes('medicine') || lowerProductName.includes('aspirin') || lowerProductName.includes('farmaco') || lowerProductName.includes('aspirina') || lowerProductName.includes('pharmacy')) {
+    searchTerms.push('amenity=pharmacy', 'shop=chemist');
+  }
+  
+  // Books & Stationery
+  else if (lowerProductName.includes('book') || lowerProductName.includes('libro')) {
+    searchTerms.push('shop=books', 'shop=stationery');
+  }
+  else if (lowerProductName.includes('pen') || lowerProductName.includes('notebook') || lowerProductName.includes('paper')) {
+    searchTerms.push('shop=stationery', 'shop=books');
+  }
+  
+  // Clothing & Fashion
+  else if (lowerProductName.includes('cloth') || lowerProductName.includes('shirt') || lowerProductName.includes('dress') || lowerProductName.includes('fashion')) {
+    searchTerms.push('shop=clothes', 'shop=fashion');
+  }
+  else if (lowerProductName.includes('shoes') || lowerProductName.includes('boots')) {
+    searchTerms.push('shop=shoes', 'shop=clothes');
+  }
+  
+  // Food & Groceries
+  else if (lowerProductName.includes('food') || lowerProductName.includes('bread') || lowerProductName.includes('cibo') || lowerProductName.includes('pane') || lowerProductName.includes('grocery')) {
+    searchTerms.push('shop=supermarket', 'shop=convenience');
+  }
+  else if (lowerProductName.includes('coffee') || lowerProductName.includes('caffè')) {
+    searchTerms.push('shop=coffee', 'amenity=cafe');
+  }
+  else if (lowerProductName.includes('alcohol') || lowerProductName.includes('wine') || lowerProductName.includes('beer')) {
+    searchTerms.push('shop=alcohol', 'shop=wine');
+  }
+  
+  // Sports & Outdoor
+  else if (lowerProductName.includes('sport') || lowerProductName.includes('bike') || lowerProductName.includes('fitness')) {
+    searchTerms.push('shop=sports', 'shop=bicycle');
+  }
+  
+  // Automotive
+  else if (lowerProductName.includes('car') || lowerProductName.includes('auto') || lowerProductName.includes('tire')) {
+    searchTerms.push('shop=car', 'shop=car_parts');
+  }
+  
+  // Beauty & Personal Care
+  else if (lowerProductName.includes('cosmetic') || lowerProductName.includes('beauty') || lowerProductName.includes('perfume')) {
+    searchTerms.push('shop=cosmetics', 'shop=perfumery');
+  }
+  else if (lowerProductName.includes('hairdresser') || lowerProductName.includes('hair')) {
+    searchTerms.push('shop=hairdresser', 'shop=beauty');
+  }
+  
+  // Home & Garden
+  else if (lowerProductName.includes('furniture') || lowerProductName.includes('mobili')) {
+    searchTerms.push('shop=furniture', 'shop=interior_decoration');
+  }
+  else if (lowerProductName.includes('garden') || lowerProductName.includes('plant') || lowerProductName.includes('flower')) {
+    searchTerms.push('shop=garden_centre', 'shop=florist');
+  }
+  
+  // Jewelry & Watches
+  else if (lowerProductName.includes('jewelry') || lowerProductName.includes('watch') || lowerProductName.includes('ring')) {
+    searchTerms.push('shop=jewelry', 'shop=watches');
+  }
+  
+  // Musical Instruments
+  else if (lowerProductName.includes('music') || lowerProductName.includes('instrument') || lowerProductName.includes('guitar')) {
+    searchTerms.push('shop=musical_instrument', 'shop=music');
+  }
+  
+  // Toys & Games
+  else if (lowerProductName.includes('toy') || lowerProductName.includes('game') || lowerProductName.includes('children')) {
+    searchTerms.push('shop=toys', 'shop=games');
+  }
+  
+  // Default fallback to general categories
+  if (searchTerms.length === 0) {
+    searchTerms.push('shop=department_store', 'shop=general');
+  }
+
+  // Return only the first 2 categories
+  return searchTerms.slice(0, 2);
+}
 
 function generateFallbackSearchTerms(productName: string, location?: string): any {
   console.log('Generating fallback search terms for:', productName, 'in location:', location);
