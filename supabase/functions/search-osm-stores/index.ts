@@ -233,6 +233,12 @@ function mapTermsToOSMCategories(searchTerms: string[]): string[] {
   for (const term of searchTerms) {
     const lowerTerm = term.toLowerCase();
     
+    // If the term is already in OSM format (shop=X or amenity=X), use it directly
+    if (lowerTerm.includes('shop=') || lowerTerm.includes('amenity=')) {
+      osmCategories.push(term);
+      continue;
+    }
+    
     // Electronics & Technology
     if (lowerTerm.includes('elektronik') || lowerTerm.includes('elettronica') || 
         lowerTerm.includes('électronique') || lowerTerm.includes('electrónica') || 
