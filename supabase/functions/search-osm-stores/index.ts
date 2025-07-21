@@ -73,15 +73,30 @@ serve(async (req) => {
             out center tags;
           `;
         } else {
-          overpassQuery = `
-            [out:json][timeout:25];
-            (
-              node["${category}"](around:${radiusMeters},${userLat},${userLng});
-              way["${category}"](around:${radiusMeters},${userLat},${userLng});
-              relation["${category}"](around:${radiusMeters},${userLat},${userLng});
-            );
-            out center tags;
-          `;
+          // Parse the category to extract key and value (e.g., "shop=mobile_phone" -> key="shop", value="mobile_phone")
+          const [key, value] = category.includes('=') ? category.split('=') : [category, ''];
+          
+          if (value) {
+            overpassQuery = `
+              [out:json][timeout:25];
+              (
+                node["${key}"="#{value}"](around:${radiusMeters},${userLat},${userLng});
+                way["${key}"="#{value}"](around:${radiusMeters},${userLat},${userLng});
+                relation["${key}"="#{value}"](around:${radiusMeters},${userLat},${userLng});
+              );
+              out center tags;
+            `.replace(/#{value}/g, value);
+          } else {
+            overpassQuery = `
+              [out:json][timeout:25];
+              (
+                node["${key}"](around:${radiusMeters},${userLat},${userLng});
+                way["${key}"](around:${radiusMeters},${userLat},${userLng});
+                relation["${key}"](around:${radiusMeters},${userLat},${userLng});
+              );
+              out center tags;
+            `;
+          }
         }
         
         console.log(`Overpass query: ${overpassQuery.trim()}`);
