@@ -193,7 +193,6 @@ serve(async (req) => {
               url: element.tags.website || element.tags['contact:website'] || null,
               isOnline: false,
               source: 'OpenStreetMap',
-              channel: 'overpass',
               rating: null,
               userRatingsTotal: null,
               place_id: `osm-${element.type}-${element.id}`,
