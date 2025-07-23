@@ -22,34 +22,38 @@ serve(async (req) => {
 
     console.log('Searching OpenStreetMap for:', productName, 'near', userLat, userLng);
 
-    // Use provided search terms or map the product name directly to OSM categories
+    // Use AI to determine the best shop categories for the product
     let storeCategories: string[] = [];
     
-    if (searchTerms && Array.isArray(searchTerms)) {
-      console.log('Using provided search terms:', searchTerms);
-      storeCategories = mapTermsToOSMCategories(searchTerms);
-    } else {
-      console.log('No search terms provided, mapping product name directly');
-      storeCategories = mapTermsToOSMCategories([productName]);
+    try {
+      console.log('Using AI to match product categories for:', productName);
+      const categoryResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/ai-category-matcher`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
+        },
+        body: JSON.stringify({ productName })
+      });
+
+      if (categoryResponse.ok) {
+        const categoryData = await categoryResponse.json();
+        storeCategories = categoryData.categories || [];
+        console.log('AI-selected categories:', storeCategories);
+      } else {
+        console.log('AI category matching failed, using fallback');
+        storeCategories = getFallbackCategories(productName);
+      }
+    } catch (error) {
+      console.error('Error calling AI category matcher:', error);
+      storeCategories = getFallbackCategories(productName);
     }
-    
-    console.log('Mapped OSM categories:', storeCategories);
 
     if (storeCategories.length === 0) {
-      console.log('No OSM categories found, using fallback');
-      storeCategories = ['shop=electronics', 'shop=mobile_phone', 'shop=computer'];
+      console.log('No categories found, using default fallback');
+      storeCategories = ['shop=electronics', 'shop=general', 'shop=department_store'];
     }
 
-    // Add broad store categories that are commonly tagged in OSM
-    const broadCategories = [
-      'shop=general', 
-      'shop=department_store', 
-      'shop=variety_store',
-      'shop=convenience',
-      'shop=supermarket',
-      'amenity=marketplace'
-    ];
-    storeCategories = [...storeCategories, ...broadCategories];
     console.log('Final OSM categories to search:', storeCategories);
 
     const results = [];
@@ -205,13 +209,7 @@ serve(async (req) => {
       }
     }
 
-    // Search OpenCorporates API for business information
-    // NOTE: OpenCorporates requires an API key even for basic access (401 errors without authentication)
-    // For now, this channel is disabled until we can get proper API credentials
-    console.log('OpenCorporates channel temporarily disabled (requires API key)');
-    
-    // TODO: Add alternative free business directory API here
-    // Possible alternatives: Foursquare Places API, Google Places API (with key), or other business directories
+    console.log(`Found ${results.length} results from OverPass API`);
 
     // Remove duplicates based on name and location proximity
     const uniqueResults = [];
@@ -341,4 +339,27 @@ function mapTermsToOSMCategories(searchTerms: string[]): string[] {
   
   // Remove duplicates and return
   return [...new Set(osmCategories)];
+}
+
+function getFallbackCategories(productName: string): string[] {
+  const lowerProduct = productName.toLowerCase();
+  const categories: string[] = [];
+  
+  // Electronics
+  if (lowerProduct.includes('phone') || lowerProduct.includes('iphone') || lowerProduct.includes('samsung')) {
+    categories.push('shop=mobile_phone');
+  }
+  if (lowerProduct.includes('laptop') || lowerProduct.includes('computer') || lowerProduct.includes('pc')) {
+    categories.push('shop=computer');
+  }
+  if (lowerProduct.includes('electronics') || lowerProduct.includes('gadget')) {
+    categories.push('shop=electronics');
+  }
+  
+  // Always add some broad categories as fallback
+  if (categories.length === 0) {
+    categories.push('shop=electronics', 'shop=general', 'shop=department_store');
+  }
+  
+  return categories;
 }

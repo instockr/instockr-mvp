@@ -53,3 +53,12 @@ verify_jwt = false
 
 [functions.crawl-store-products]
 verify_jwt = false
+
+[functions.ai-category-matcher]
+verify_jwt = false
+
+[functions.search-osm-stores]
+verify_jwt = false
+
+[functions.osm-location-autocomplete]
+verify_jwt = false
