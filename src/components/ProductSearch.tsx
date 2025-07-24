@@ -364,7 +364,9 @@ const geocodeLocation = async (locationStr: string) => {
         }
       });
 
-      // Step 2: Execute searches across all channels in parallel
+      console.log(strategiesResponse)
+
+      // Step 2: Look for the categories on OverPass
       const searchPromises = [];
 
       if (strategiesResponse.error) {
@@ -401,7 +403,7 @@ const geocodeLocation = async (locationStr: string) => {
       }
 
       // Wait for all searches to complete
-      console.log('Executing parallel searches across all channels...');
+      // console.log('Executing parallel searches across all channels...');
       const allResults = await Promise.all(searchPromises);
       
       // Step 3: Combine all OpenStreetMap results
