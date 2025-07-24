@@ -368,19 +368,14 @@ const geocodeLocation = async (locationStr: string) => {
       const searchPromises = [];
 
       if (strategiesResponse.error) {
-        console.log('Strategy generation failed, using basic search');
-        // Fallback to basic search with default categories
-        const fallbackCategories = ['shop=electronics', 'shop=general', 'shop=department_store'];
-        const fallbackPromise = supabase.functions.invoke('search-osm-stores', {
-          body: {
-            productName: productName.trim(),
-            userLat: locationCoords?.lat || 45.4642, // Default to Milan if no coords
-            userLng: locationCoords?.lng || 9.19,
-            radius: 50,
-            categories: fallbackCategories
-          }
+        console.error('Strategy generation failed:', strategiesResponse.error);
+        setIsLoading(false);
+        toast({
+          title: "Search Error",
+          description: `Failed to generate search strategies: ${strategiesResponse.error.message}`,
+          variant: "destructive",
         });
-        searchPromises.push(fallbackPromise.then(result => ({ source: 'local_db_fallback', strategy: 'fallback', result })));
+        return;
       } else {
         const storeCategories = strategiesResponse.data?.searchTerms || [];
         console.log('Generated store categories:', storeCategories);
