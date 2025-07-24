@@ -369,15 +369,15 @@ const geocodeLocation = async (locationStr: string) => {
 
       if (strategiesResponse.error) {
         console.log('Strategy generation failed, using basic search');
-        // Fallback to basic search
+        // Fallback to basic search with default categories
+        const fallbackCategories = ['shop=electronics', 'shop=general', 'shop=department_store'];
         const fallbackPromise = supabase.functions.invoke('search-osm-stores', {
           body: {
             productName: productName.trim(),
             userLat: locationCoords?.lat || 45.4642, // Default to Milan if no coords
             userLng: locationCoords?.lng || 9.19,
             radius: 50,
-            location: location,
-            searchTerms: [productName.trim()] // Provide the product name as search term
+            categories: fallbackCategories
           }
         });
         searchPromises.push(fallbackPromise.then(result => ({ source: 'local_db_fallback', strategy: 'fallback', result })));
@@ -389,21 +389,17 @@ const geocodeLocation = async (locationStr: string) => {
         const searchTerms = [...storeCategories, productName.trim()];
         console.log('Final search terms (categories + product):', searchTerms);
 
-        // Create promises for each search term and channel
-        for (const searchTerm of searchTerms) {
-          // OpenStreetMap search for physical stores
-          const searchPromise = supabase.functions.invoke('search-osm-stores', {
-            body: {
-              productName: searchTerm,
-              userLat: locationCoords?.lat || 45.4642,
-              userLng: locationCoords?.lng || 9.19,
-              radius: 50,
-              location: location,
-              searchTerms: storeCategories // Pass the original search terms
-            }
-          });
-          searchPromises.push(searchPromise.then(result => ({ source: 'openstreetmap', strategy: searchTerm, result })));
-        }
+        // Use the categories directly for OSM search
+        const searchPromise = supabase.functions.invoke('search-osm-stores', {
+          body: {
+            productName: productName.trim(),
+            userLat: locationCoords?.lat || 45.4642,
+            userLng: locationCoords?.lng || 9.19,
+            radius: 50,
+            categories: storeCategories
+          }
+        });
+        searchPromises.push(searchPromise.then(result => ({ source: 'openstreetmap', strategy: 'generated_categories', result })));
 
         
         console.log(`Total search promises created: ${searchPromises.length}`);

@@ -11,49 +11,19 @@ serve(async (req) => {
   }
 
   try {
-    const { productName, userLat, userLng, radius = 50, location, searchTerms } = await req.json();
+    const { productName, userLat, userLng, radius = 50, categories } = await req.json();
 
-    if (!productName || !userLat || !userLng) {
+    if (!productName || !userLat || !userLng || !categories) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters: productName, userLat, userLng' }),
+        JSON.stringify({ error: 'Missing required parameters: productName, userLat, userLng, categories' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Searching OpenStreetMap for:', productName, 'near', userLat, userLng);
+    console.log('Using provided categories:', categories);
 
-    // Use AI to determine the best shop categories for the product
-    let storeCategories: string[] = [];
-    
-    try {
-      console.log('Using AI to match product categories for:', productName);
-      const categoryResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/ai-category-matcher`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
-        },
-        body: JSON.stringify({ productName })
-      });
-
-      if (categoryResponse.ok) {
-        const categoryData = await categoryResponse.json();
-        storeCategories = categoryData.categories || [];
-        console.log('AI-selected categories:', storeCategories);
-      } else {
-        console.log('AI category matching failed, using fallback');
-        storeCategories = getFallbackCategories(productName);
-      }
-    } catch (error) {
-      console.error('Error calling AI category matcher:', error);
-      storeCategories = getFallbackCategories(productName);
-    }
-
-    if (storeCategories.length === 0) {
-      console.log('No categories found, using default fallback');
-      storeCategories = ['shop=electronics', 'shop=general', 'shop=department_store'];
-    }
-
+    const storeCategories = Array.isArray(categories) ? categories : [categories];
     console.log('Final OSM categories to search:', storeCategories);
 
     const results = [];
@@ -247,118 +217,3 @@ serve(async (req) => {
     );
   }
 });
-
-function mapTermsToOSMCategories(searchTerms: string[]): string[] {
-  const osmCategories: string[] = [];
-  
-  for (const term of searchTerms) {
-    const lowerTerm = term.toLowerCase();
-    
-    // If the term is already in OSM format (shop=X or amenity=X), use it directly
-    if (lowerTerm.includes('shop=') || lowerTerm.includes('amenity=')) {
-      osmCategories.push(term);
-      continue;
-    }
-    
-    // Electronics & Technology
-    if (lowerTerm.includes('elektronik') || lowerTerm.includes('elettronica') || 
-        lowerTerm.includes('électronique') || lowerTerm.includes('electrónica') || 
-        lowerTerm.includes('electronics')) {
-      osmCategories.push('shop=electronics');
-    }
-    
-    if (lowerTerm.includes('handyladen') || lowerTerm.includes('telefonia') || 
-        lowerTerm.includes('téléphonie') || lowerTerm.includes('telefonía') || 
-        lowerTerm.includes('mobile')) {
-      osmCategories.push('shop=mobile_phone');
-    }
-    
-    if (lowerTerm.includes('computer') || lowerTerm.includes('informatica') || 
-        lowerTerm.includes('informatique') || lowerTerm.includes('informática')) {
-      osmCategories.push('shop=computer');
-    }
-    
-    // Hardware & Tools  
-    if (lowerTerm.includes('baumarkt') || lowerTerm.includes('ferramenta') || 
-        lowerTerm.includes('quincaillerie') || lowerTerm.includes('ferretería') || 
-        lowerTerm.includes('hardware')) {
-      osmCategories.push('shop=hardware');
-      osmCategories.push('shop=doityourself');
-    }
-    
-    if (lowerTerm.includes('eisenwaren') || lowerTerm.includes('bricolage') || 
-        lowerTerm.includes('bricolaje') || lowerTerm.includes('tools') || 
-        lowerTerm.includes('werkzeug') || lowerTerm.includes('outillage') || 
-        lowerTerm.includes('herramientas')) {
-      osmCategories.push('shop=hardware');
-    }
-    
-    // Health & Medicine
-    if (lowerTerm.includes('apotheke') || lowerTerm.includes('farmacia') || 
-        lowerTerm.includes('pharmacie') || lowerTerm.includes('pharmacy')) {
-      osmCategories.push('shop=pharmacy');
-      osmCategories.push('amenity=pharmacy');
-    }
-    
-    if (lowerTerm.includes('drogerie') || lowerTerm.includes('parafarmacia') || 
-        lowerTerm.includes('parapharmacie') || lowerTerm.includes('drugstore')) {
-      osmCategories.push('shop=chemist');
-    }
-    
-    // Books & Stationery
-    if (lowerTerm.includes('buchhandlung') || lowerTerm.includes('libreria') || 
-        lowerTerm.includes('librairie') || lowerTerm.includes('librería') || 
-        lowerTerm.includes('bookstore')) {
-      osmCategories.push('shop=books');
-    }
-    
-    if (lowerTerm.includes('schreibwaren') || lowerTerm.includes('cartoleria') || 
-        lowerTerm.includes('papeterie') || lowerTerm.includes('papelería') || 
-        lowerTerm.includes('stationery')) {
-      osmCategories.push('shop=stationery');
-    }
-    
-    // Food & Groceries
-    if (lowerTerm.includes('supermarkt') || lowerTerm.includes('supermercato') || 
-        lowerTerm.includes('supermarché') || lowerTerm.includes('supermercado') || 
-        lowerTerm.includes('supermarket') || lowerTerm.includes('grocery')) {
-      osmCategories.push('shop=supermarket');
-    }
-    
-    if (lowerTerm.includes('lebensmittel') || lowerTerm.includes('alimentari') || 
-        lowerTerm.includes('alimentation') || lowerTerm.includes('alimentación')) {
-      osmCategories.push('shop=convenience');
-    }
-  }
-  
-  // Fallback: if no categories found, add some general ones
-  if (osmCategories.length === 0) {
-    osmCategories.push('shop=general', 'shop=variety_store');
-  }
-  
-  // Remove duplicates and return
-  return [...new Set(osmCategories)];
-}
-
-function getFallbackCategories(productName: string): string[] {
-  const lowerProduct = productName.toLowerCase();
-  const categories: string[] = [];
-  
-  // Electronics
-  if (lowerProduct.includes('phone') || lowerProduct.includes('iphone') || lowerProduct.includes('samsung')) {
-    categories.push('shop=mobile_phone');
-  }
-  if (lowerProduct.includes('laptop') || lowerProduct.includes('computer') || lowerProduct.includes('pc')) {
-    categories.push('shop=computer');
-  }
-  if (lowerProduct.includes('electronics') || lowerProduct.includes('gadget')) {
-    categories.push('shop=electronics');
-  }
-  
-  // Always add some broad categories as fallback
-  if (categories.length === 0) {
-    categories.push('shop=electronics', 'shop=general', 'shop=department_store');
-  }
-  
-  return categories;
-}
