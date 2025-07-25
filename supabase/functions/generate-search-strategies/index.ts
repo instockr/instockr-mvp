@@ -58,8 +58,16 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
 
     console.log('No cached categories found, running AI categorization...');
 
+    // Check if HF token exists
+    const hfToken = Deno.env.get('HUGGING_FACE_ACCESS_TOKEN');
+    if (!hfToken) {
+      console.error('HUGGING_FACE_ACCESS_TOKEN not found');
+      return [];
+    }
+    console.log('HF Token available:', hfToken.substring(0, 10) + '...');
+
     // Use Hugging Face for semantic similarity
-    const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'));
+    const hf = new HfInference(hfToken);
     
     console.log('Generating embeddings for:', normalizedProductName);
     
@@ -69,6 +77,7 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
       inputs: [normalizedProductName]
     });
     
+    console.log('Product embedding received, type:', typeof productEmbedding);
     console.log('Product embedding shape:', Array.isArray(productEmbedding) ? productEmbedding.length : 'not array');
 
     // Calculate similarity with each category
