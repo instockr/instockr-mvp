@@ -64,7 +64,7 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
     // Create embeddings for the product name
     const productEmbedding = await hf.featureExtraction({
       model: 'sentence-transformers/all-MiniLM-L6-v2',
-      inputs: normalizedProductName
+      inputs: [normalizedProductName]
     });
 
     // Calculate similarity with each category
@@ -76,7 +76,7 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
       try {
         const categoryEmbedding = await hf.featureExtraction({
           model: 'sentence-transformers/all-MiniLM-L6-v2',
-          inputs: description
+          inputs: [description]
         });
 
         // Calculate cosine similarity
