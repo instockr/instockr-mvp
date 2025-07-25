@@ -49,7 +49,7 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
       .from('product_categories')
       .select('categories')
       .eq('product_name_normalized', normalizedProductName)
-      .single();
+      .maybeSingle();
 
     if (cachedProduct && !cacheError) {
       console.log(`Found cached categories for "${productName}":`, cachedProduct.categories);
