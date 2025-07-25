@@ -61,11 +61,15 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
     // Use Hugging Face for semantic similarity
     const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'));
     
+    console.log('Generating embeddings for:', normalizedProductName);
+    
     // Create embeddings for the product name
     const productEmbedding = await hf.featureExtraction({
       model: 'sentence-transformers/all-MiniLM-L6-v2',
       inputs: [normalizedProductName]
     });
+    
+    console.log('Product embedding shape:', Array.isArray(productEmbedding) ? productEmbedding.length : 'not array');
 
     // Calculate similarity with each category
     const similarities = [];
@@ -79,8 +83,12 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
           inputs: [description]
         });
 
+        // Ensure embeddings are in the right format (flatten if needed)
+        const productVec = Array.isArray(productEmbedding[0]) ? productEmbedding[0] : productEmbedding;
+        const categoryVec = Array.isArray(categoryEmbedding[0]) ? categoryEmbedding[0] : categoryEmbedding;
+
         // Calculate cosine similarity
-        const similarity = cosineSimilarity(productEmbedding, categoryEmbedding);
+        const similarity = cosineSimilarity(productVec, categoryVec);
         similarities.push({ category, similarity, description });
       } catch (error) {
         console.log(`Error processing category ${category}:`, error);
