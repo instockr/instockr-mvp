@@ -27,8 +27,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in generate-search-strategies function:', error);
-    return new Response(JSON.stringify({ searchTerms: ['shop=electronics', 'shop=mobile_phone'] }), {
+    return new Response(JSON.stringify({ 
+      error: 'Unable to process product name. Please try a different product.' 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500
     });
   }
 });
@@ -74,7 +77,7 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
     // Create embeddings for the product name
     const productEmbedding = await hf.featureExtraction({
       model: 'sentence-transformers/all-MiniLM-L6-v2',
-      inputs: [normalizedProductName]
+      inputs: normalizedProductName
     });
     
     console.log('Product embedding received, type:', typeof productEmbedding);
@@ -89,7 +92,7 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
       try {
         const categoryEmbedding = await hf.featureExtraction({
           model: 'sentence-transformers/all-MiniLM-L6-v2',
-          inputs: [description]
+          inputs: description
         });
 
         // Ensure embeddings are in the right format (flatten if needed)
