@@ -785,7 +785,7 @@ const geocodeLocation = async (locationStr: string) => {
                             {/* Distance (if available) */}
                             {distance && (
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="text-sm font-medium text-blue-600 ml-6">
+                                <span className="text-sm font-medium text-blue-600">
                                   📍 {distance.toFixed(1)} km away
                                 </span>
                               </div>
