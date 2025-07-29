@@ -72,45 +72,29 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
     // Use Hugging Face for semantic similarity
     const hf = new HfInference(hfToken);
     
-    console.log('Generating embeddings for:', normalizedProductName);
+    console.log('Generating similarities for:', normalizedProductName);
     
-    // Create embeddings for the product name
-    const productEmbedding = await hf.featureExtraction({
+    // Use sentence similarity to compare product with all categories at once
+    const similarities = await hf.sentenceSimilarity({
       model: 'sentence-transformers/all-MiniLM-L6-v2',
-      inputs: [normalizedProductName]
-    });
-    
-    console.log('Product embedding received, type:', typeof productEmbedding);
-    console.log('Product embedding shape:', Array.isArray(productEmbedding) ? productEmbedding.length : 'not array');
-
-    // Calculate similarity with each category
-    const similarities = [];
-    
-    for (const category of OSM_SHOP_CATEGORIES) {
-      const description = CATEGORY_DESCRIPTIONS[category as keyof typeof CATEGORY_DESCRIPTIONS] || category;
-      
-      try {
-        const categoryEmbedding = await hf.featureExtraction({
-          model: 'sentence-transformers/all-MiniLM-L6-v2',
-          inputs: [description]
-        });
-
-        // Ensure embeddings are in the right format (flatten if needed)
-        const productVec = Array.isArray(productEmbedding[0]) ? productEmbedding[0] : productEmbedding;
-        const categoryVec = Array.isArray(categoryEmbedding[0]) ? categoryEmbedding[0] : categoryEmbedding;
-
-        // Calculate cosine similarity
-        const similarity = cosineSimilarity(productVec, categoryVec);
-        similarities.push({ category, similarity, description });
-      } catch (error) {
-        console.log(`Error processing category ${category}:`, error);
-        continue;
+      inputs: {
+        source_sentence: normalizedProductName,
+        sentences: OSM_SHOP_CATEGORIES.map(category =>
+          CATEGORY_DESCRIPTIONS[category as keyof typeof CATEGORY_DESCRIPTIONS] || category
+        )
       }
-    }
+    });
 
-    // Sort by similarity and take top 3
-    similarities.sort((a, b) => b.similarity - a.similarity);
-    const topCategories = similarities.slice(0, 3).map(item => item.category);
+    console.log('Similarities received:', similarities);
+
+    // Sort and select top 3
+    const scored = OSM_SHOP_CATEGORIES.map((category, i) => ({
+      category,
+      similarity: similarities[i],
+    }));
+
+    scored.sort((a, b) => b.similarity - a.similarity);
+    const topCategories = scored.slice(0, 3).map(item => item.category);
 
     console.log(`Top categories for "${productName}":`, topCategories);
 
@@ -142,9 +126,3 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
   }
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
-  const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-  const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-  return dotProduct / (magnitudeA * magnitudeB);
-}
