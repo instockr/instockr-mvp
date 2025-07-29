@@ -77,7 +77,7 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
     // Create embeddings for the product name
     const productEmbedding = await hf.featureExtraction({
       model: 'sentence-transformers/all-MiniLM-L6-v2',
-      inputs: normalizedProductName
+      inputs: [normalizedProductName]
     });
     
     console.log('Product embedding received, type:', typeof productEmbedding);
@@ -92,7 +92,7 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
       try {
         const categoryEmbedding = await hf.featureExtraction({
           model: 'sentence-transformers/all-MiniLM-L6-v2',
-          inputs: description
+          inputs: [description]
         });
 
         // Ensure embeddings are in the right format (flatten if needed)
