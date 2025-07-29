@@ -799,22 +799,6 @@ const geocodeLocation = async (locationStr: string) => {
                               </div>
                             )}
                             
-                            {/* Verification badge */}
-                            {(result as any).verification && (
-                              <div className="flex items-center gap-2">
-                                {(result as any).verification.verified ? (
-                                  <>
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
-                                    <span className="text-sm text-green-600">Verified on Google Maps</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <XCircle className="h-4 w-4 text-orange-600" />
-                                    <span className="text-sm text-orange-600">Not verified on Google Maps</span>
-                                  </>
-                                )}
-                              </div>
-                            )}
                           </div>
 
                           {/* RIGHT SIDE: Status and Actions */}
