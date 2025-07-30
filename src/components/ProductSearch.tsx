@@ -698,7 +698,7 @@ const geocodeLocation = async (locationStr: string) => {
             <Card>
               <CardContent className="pt-6 text-center text-muted-foreground">
                 No stores found with this product in stock nearby.
-                Try searching for a different product or expanding your search area.
+                Try searching for a different or similar product.
               </CardContent>
             </Card>
           ) : (
@@ -726,7 +726,7 @@ const geocodeLocation = async (locationStr: string) => {
                 const storeAddress = (result as any).store?.address || (result as any).address || 'Address not available';
                 const storePhone = (result as any).store?.phone;
                 const distance = (result as any).distance;
-                const storeType = (result as any).store_type || (result as any).store?.store_type;
+                const storeType = (result as any).matchedCategory || (result as any).store?.matchedCategory;
                 console.log('Store type for', storeName, ':', storeType);
                 const categoryImage = getCategoryImage(storeType);
                 console.log('Category image for', storeType, ':', categoryImage);
@@ -777,9 +777,6 @@ const geocodeLocation = async (locationStr: string) => {
                                      phone: (result as any).phone || storePhone,
                                      website: (result as any).url || (result as any).verification?.website,
                                      storeType: (result as any).store_type || (result as any).store?.store_type,
-                                     photoUrl: (result as any).photoUrl || (result as any).verification?.photoUrl,
-                                     rating: (result as any).rating || (result as any).verification?.rating,
-                                     userRatingsTotal: (result as any).userRatingsTotal || (result as any).verification?.userRatingsTotal,
                                      isOpen: (result as any).isOpen ?? (result as any).verification?.isOpen,
                                      openingHours: (result as any).openingHours || (result as any).verification?.openingHours,
                                    };

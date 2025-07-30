@@ -171,6 +171,8 @@ serve(async (req) => {
               }
             }
 
+            const matchedCategory = category.includes('=') ? category.split('=')[1] : category;
+
             results.push({
               id: `osm-${element.type}-${element.id}`,
               name: element.tags.name,
@@ -187,14 +189,10 @@ serve(async (req) => {
                 availability: 'Contact store for availability'
               },
               url: element.tags.website || element.tags['contact:website'] || null,
-              isOnline: false,
               source: 'OpenStreetMap',
-              rating: null,
-              userRatingsTotal: null,
               place_id: `osm-${element.type}-${element.id}`,
-              photoUrl: undefined,
-              isOpen: null,
-              openingHours: element.tags.opening_hours ? [element.tags.opening_hours] : []
+              openingHours: element.tags.opening_hours ? [element.tags.opening_hours] : [],
+              matchedCategory: matchedCategory
             });
           }
         }
