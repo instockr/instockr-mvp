@@ -145,6 +145,28 @@ serve(async (req) => {
               }
             }
 
+            // If address is incomplete or missing, use reverse geocoding
+            if (address === 'Address not available' || address.length < 10) {
+              try {
+                const reverseGeoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&accept-language=en`;
+                const reverseResponse = await fetch(reverseGeoUrl, {
+                  headers: {
+                    'User-Agent': 'InStockr-App/1.0 (store-locator)'
+                  }
+                });
+                
+                if (reverseResponse.ok) {
+                  const reverseData = await reverseResponse.json();
+                  if (reverseData.display_name) {
+                    address = reverseData.display_name;
+                  }
+                }
+              } catch (reverseError) {
+                console.log('Reverse geocoding failed for', element.tags.name, ':', reverseError);
+                // Keep the original address or "Address not available"
+              }
+            }
+
             results.push({
               id: `osm-${element.type}-${element.id}`,
               name: element.tags.name,
