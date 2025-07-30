@@ -500,7 +500,7 @@ const geocodeLocation = async (locationStr: string) => {
     return colors[type] || colors.other;
   };
 
-  const getCategoryImage = (storeType: string) => {
+  const getCategoryImage = (storeType: string): string | null => {
     // Map store types to category images
     const categoryImages: Record<string, string> = {
       mobile_phone: mobilePhoneImage,
