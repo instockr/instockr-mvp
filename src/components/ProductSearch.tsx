@@ -727,7 +727,9 @@ const geocodeLocation = async (locationStr: string) => {
                 const storePhone = (result as any).store?.phone;
                 const distance = (result as any).distance;
                 const storeType = (result as any).store_type || (result as any).store?.store_type;
+                console.log('Store type for', storeName, ':', storeType);
                 const categoryImage = getCategoryImage(storeType);
+                console.log('Category image for', storeType, ':', categoryImage);
                 
                 return (
                   <Card key={index} className="hover:shadow-lg transition-shadow">

@@ -118,8 +118,12 @@ serve(async (req) => {
 
             // Determine store type
             let storeType = 'retail';
-            if (category.includes('electronics') || category.includes('mobile_phone') || category.includes('computer')) {
+            if (category.includes('mobile_phone')) {
+              storeType = 'mobile_phone';
+            } else if (category.includes('electronics')) {
               storeType = 'electronics';
+            } else if (category.includes('computer')) {
+              storeType = 'computer';
             } else if (category.includes('supermarket') || category.includes('convenience')) {
               storeType = 'grocery';
             } else if (category.includes('pharmacy') || category.includes('chemist')) {
