@@ -726,7 +726,7 @@ const geocodeLocation = async (locationStr: string) => {
                 const storeAddress = (result as any).store?.address || (result as any).address || 'Address not available';
                 const storePhone = (result as any).store?.phone;
                 const distance = (result as any).distance;
-                const storeType = (result as any).matchedCategory || (result as any).store?.matchedCategory;
+                const storeType = (result as any).store_type || (result as any).store?.store_type;
                 console.log('Store type for', storeName, ':', storeType);
                 const categoryImage = getCategoryImage(storeType);
                 console.log('Category image for', storeType, ':', categoryImage);
@@ -736,33 +736,33 @@ const geocodeLocation = async (locationStr: string) => {
                      <CardContent className="pt-6">
                          <div className="flex gap-4">
                             {/* LEFT SIDE: Image (square, height matches content) */}
-                            <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                               {categoryImage ? (
-                                 <img 
-                                   src={categoryImage} 
-                                   alt={`${storeType} category`}
-                                   className="w-full h-full object-cover"
-                                 />
-                               ) : (result as any).verification?.photoUrl ? (
-                                 <img 
-                                   src={(result as any).verification.photoUrl} 
-                                   alt={`${storeName} storefront`}
-                                   className="w-full h-full object-cover"
-                                   onError={(e) => {
-                                     const target = e.currentTarget as HTMLImageElement;
-                                     const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
-                                     if (fallback) {
-                                       target.style.display = 'none';
-                                       fallback.style.display = 'flex';
-                                     }
-                                   }}
-                                 />
-                               ) : (
-                                 <div className="w-full h-full flex items-center justify-center">
-                                   <Store className="h-8 w-8 text-muted-foreground" />
-                                 </div>
-                               )}
-                            </div>
+<div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+  {/* Fallback icon (always present, but hidden unless image fails) */}
+  <div className="absolute inset-0 w-full h-full flex items-center justify-center fallback-icon hidden">
+    <Store className="h-8 w-8 text-muted-foreground" />
+  </div>
+
+  {/* Category image */}
+  {categoryImage ? (
+    <img
+      src={categoryImage}
+      alt={`${storeType} category`}
+      className="w-full h-full object-cover"
+      onError={(e) => {
+        const img = e.currentTarget;
+        img.style.display = 'none';
+        const fallback = img.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+        if (fallback) fallback.style.display = 'flex';
+      }}
+    />
+  ) : (
+    // If no image provided at all, show fallback immediately
+    <div className="w-full h-full flex items-center justify-center">
+      <Store className="h-8 w-8 text-muted-foreground" />
+    </div>
+  )}
+</div>
+
 
                           {/* CENTER: Store Information */}
                           <div className="flex-1">

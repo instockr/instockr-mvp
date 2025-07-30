@@ -116,22 +116,6 @@ serve(async (req) => {
             // Skip if outside radius
             if (distance > radius) continue;
 
-            // Determine store type
-            let storeType = 'retail';
-            if (category.includes('mobile_phone')) {
-              storeType = 'mobile_phone';
-            } else if (category.includes('electronics')) {
-              storeType = 'electronics';
-            } else if (category.includes('computer')) {
-              storeType = 'computer';
-            } else if (category.includes('supermarket') || category.includes('convenience')) {
-              storeType = 'grocery';
-            } else if (category.includes('pharmacy') || category.includes('chemist')) {
-              storeType = 'pharmacy';
-            } else if (category.includes('department_store') || category.includes('hardware') || category.includes('doityourself')) {
-              storeType = 'department';
-            }
-
             // Build address from available tags
             let address = 'Address not available';
             const addrTags = element.tags;
@@ -171,7 +155,7 @@ serve(async (req) => {
               }
             }
 
-            const matchedCategory = category.includes('=') ? category.split('=')[1] : category;
+            const storeType = category.includes('=') ? category.split('=')[1] : category;
 
             results.push({
               id: `osm-${element.type}-${element.id}`,
@@ -192,7 +176,6 @@ serve(async (req) => {
               source: 'OpenStreetMap',
               place_id: `osm-${element.type}-${element.id}`,
               openingHours: element.tags.opening_hours ? [element.tags.opening_hours] : [],
-              matchedCategory: matchedCategory
             });
           }
         }
