@@ -38,7 +38,7 @@ serve(async (req) => {
         if (category === 'shop=*') {
           // Special query for any shop
           overpassQuery = `
-            [out:json][timeout:25];
+            [out:json][timeout:10];
             (
               node["shop"](around:${radiusMeters},${userLat},${userLng});
               way["shop"](around:${radiusMeters},${userLat},${userLng});
@@ -52,7 +52,7 @@ serve(async (req) => {
           
           if (value) {
             overpassQuery = `
-              [out:json][timeout:25];
+              [out:json][timeout:10];
               (
                 node["${key}"="${value}"](around:${radiusMeters},${userLat},${userLng});
                 way["${key}"="${value}"](around:${radiusMeters},${userLat},${userLng});
@@ -62,7 +62,7 @@ serve(async (req) => {
             `;
           } else {
             overpassQuery = `
-              [out:json][timeout:25];
+              [out:json][timeout:10];
               (
                 node["${key}"](around:${radiusMeters},${userLat},${userLng});
                 way["${key}"](around:${radiusMeters},${userLat},${userLng});
@@ -82,7 +82,8 @@ serve(async (req) => {
             'Content-Type': 'text/plain',
             'User-Agent': 'InStockr-App/1.0 (store-locator)'
           },
-          body: overpassQuery
+          body: overpassQuery,
+          signal: AbortSignal.timeout(15000) // 15 second timeout
         });
 
         if (!response.ok) {
@@ -133,26 +134,9 @@ serve(async (req) => {
               }
             }
 
-            // If address is incomplete or missing, use reverse geocoding
-            if (address === 'Address not available' || address.length < 10) {
-              try {
-                const reverseGeoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&accept-language=en`;
-                const reverseResponse = await fetch(reverseGeoUrl, {
-                  headers: {
-                    'User-Agent': 'InStockr-App/1.0 (store-locator)'
-                  }
-                });
-                
-                if (reverseResponse.ok) {
-                  const reverseData = await reverseResponse.json();
-                  if (reverseData.display_name) {
-                    address = reverseData.display_name;
-                  }
-                }
-              } catch (reverseError) {
-                console.log('Reverse geocoding failed for', element.tags.name, ':', reverseError);
-                // Keep the original address or "Address not available"
-              }
+            // Use OSM address or fallback to a simple message
+            if (address === 'Address not available' || address.length < 5) {
+              address = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
             }
 
             const storeType = category.includes('=') ? category.split('=')[1] : category;
