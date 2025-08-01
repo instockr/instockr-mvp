@@ -54,12 +54,12 @@ serve(async (req) => {
             overpassQuery = `
               [out:json][timeout:25];
               (
-                node["${key}"="#{value}"](around:${radiusMeters},${userLat},${userLng});
-                way["${key}"="#{value}"](around:${radiusMeters},${userLat},${userLng});
-                relation["${key}"="#{value}"](around:${radiusMeters},${userLat},${userLng});
+                node["${key}"="${value}"](around:${radiusMeters},${userLat},${userLng});
+                way["${key}"="${value}"](around:${radiusMeters},${userLat},${userLng});
+                relation["${key}"="${value}"](around:${radiusMeters},${userLat},${userLng});
               );
               out center tags;
-            `.replace(/#{value}/g, value);
+            `;
           } else {
             overpassQuery = `
               [out:json][timeout:25];
