@@ -5,6 +5,56 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Rate limiting for reverse geocoding
+let lastReverseGeoCall = 0;
+const REVERSE_GEO_DELAY = 100; // 100ms between calls
+
+async function reverseGeocode(lat: number, lon: number, storeName: string): Promise<string> {
+  try {
+    // Rate limiting
+    const now = Date.now();
+    const timeSinceLastCall = now - lastReverseGeoCall;
+    if (timeSinceLastCall < REVERSE_GEO_DELAY) {
+      await new Promise(resolve => setTimeout(resolve, REVERSE_GEO_DELAY - timeSinceLastCall));
+    }
+    lastReverseGeoCall = Date.now();
+
+    const reverseGeoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&accept-language=en`;
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout')), 2000)
+    );
+    
+    const fetchPromise = fetch(reverseGeoUrl, {
+      headers: {
+        'User-Agent': 'InStockr-App/1.0 (store-locator)'
+      }
+    });
+    
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.display_name) {
+      // Extract a cleaner address from the full display_name
+      const addressParts = data.display_name.split(', ');
+      // Take first 3-4 parts for a reasonable address length
+      return addressParts.slice(0, Math.min(4, addressParts.length)).join(', ');
+    }
+    
+    throw new Error('No address found');
+    
+  } catch (error) {
+    console.log(`Reverse geocoding failed for ${storeName}:`, error.message);
+    return `Location: ${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -134,17 +184,9 @@ serve(async (req) => {
               }
             }
 
-            // Build better address from available OSM data
+            // Use reverse geocoding for stores with poor address data
             if (address === 'Address not available' || address.length < 5) {
-              const cityName = addrTags?.['addr:city'] || addrTags?.['is_in:city'] || '';
-              const countryName = addrTags?.['addr:country'] || addrTags?.['is_in:country'] || '';
-              
-              if (cityName) {
-                address = countryName ? `${cityName}, ${countryName}` : cityName;
-              } else {
-                // Use coordinates as last resort with better formatting
-                address = `Location: ${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
-              }
+              address = await reverseGeocode(lat, lon, element.tags.name);
             }
 
             const storeType = category.includes('=') ? category.split('=')[1] : category;
