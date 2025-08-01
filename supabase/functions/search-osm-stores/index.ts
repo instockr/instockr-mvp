@@ -134,9 +134,31 @@ serve(async (req) => {
               }
             }
 
-            // Use OSM address or fallback to a simple message
+            // Only use reverse geocoding for stores with very poor address data
             if (address === 'Address not available' || address.length < 5) {
-              address = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+              try {
+                const reverseGeoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&accept-language=en`;
+                const reverseResponse = await fetch(reverseGeoUrl, {
+                  headers: {
+                    'User-Agent': 'InStockr-App/1.0 (store-locator)'
+                  },
+                  signal: AbortSignal.timeout(3000) // 3 second timeout for reverse geocoding
+                });
+                
+                if (reverseResponse.ok) {
+                  const reverseData = await reverseResponse.json();
+                  if (reverseData.display_name) {
+                    // Extract a cleaner address from the full display_name
+                    const addressParts = reverseData.display_name.split(', ');
+                    // Take first 3-4 parts for a reasonable address length
+                    address = addressParts.slice(0, Math.min(4, addressParts.length)).join(', ');
+                  }
+                }
+              } catch (reverseError) {
+                console.log('Reverse geocoding timed out or failed for', element.tags.name);
+                // Fallback to coordinates
+                address = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+              }
             }
 
             const storeType = category.includes('=') ? category.split('=')[1] : category;
