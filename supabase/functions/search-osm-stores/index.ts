@@ -189,7 +189,7 @@ serve(async (req) => {
               address = await reverseGeocode(lat, lon, element.tags.name);
             }
 
-            const storeType = element.tags.shop || category.includes('=') ? category.split('=')[1] : category;
+            const storeType = element.tags.shop || (category.includes('=') ? category.split('=')[1] : category);
 
             results.push({
               id: `osm-${element.type}-${element.id}`,
