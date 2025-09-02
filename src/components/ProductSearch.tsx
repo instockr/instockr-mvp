@@ -529,7 +529,7 @@ export function ProductSearch() {
                     setIsLocationAutoDetected(false); // Reset flag when user types
                   }}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  onFocus={() => location.length > 2 && setShowSuggestions(true)}
+                  onFocus={() => !isLocationAutoDetected && location.length > 2 && setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   className="pl-4 pr-12 py-3 text-lg border-2 border-muted-foreground/20 bg-background/90 backdrop-blur-sm
                             focus:border-green-500/50 focus:ring-2 focus:ring-green-500/10 focus:bg-background 
