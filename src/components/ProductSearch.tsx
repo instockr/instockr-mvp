@@ -322,15 +322,12 @@ export function ProductSearch() {
 
     try {
       // Step 1: Generate LLM-powered search strategies
-      //console.log('Generating search strategies...');
       const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
         body: {
           productName: productName.trim(),
           location: location.trim()
         }
       });
-
-      //console.log(strategiesResponse)
 
       // Step 2: Look for the categories on OverPass
       const searchPromises = [];
@@ -346,7 +343,6 @@ export function ProductSearch() {
         return;
       } else {
         const storeCategories = strategiesResponse.data?.searchTerms || [];
-        // console.log('Generated store categories:', storeCategories);
 
         // Use the categories directly for OSM search
         const searchPromise = supabase.functions.invoke('search-osm-stores', {
@@ -361,30 +357,20 @@ export function ProductSearch() {
       }
 
       // Wait for all searches to complete
-      // console.log('Executing parallel searches across all channels...');
       const allStores = (await Promise.all(searchPromises)).flat();
-
-      const osmStores = allStores[0]
-
-      //console.log(osmStores)
-
-      // sort by distance
-      allStores.sort((a, b) => {
-        if (a.distance == null) return 1;
-        if (b.distance == null) return -1;
-        return a.distance - b.distance;
-      });
+      const osmStores = allStores[0];
 
       // Check if we have results
       if (osmStores.totalResults > 0) {
-        // Set final results
-        setResults({
+        // Set final results and navigate to results page
+        const searchResult = {
           stores: osmStores.stores,
           searchedProduct: productName,
           totalResults: osmStores.totalResults
-        });
-
-        console.log(results)
+        };
+        
+        sessionStorage.setItem('searchResults', JSON.stringify(searchResult));
+        navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
 
         toast({
           title: "Search Complete",
@@ -392,11 +378,14 @@ export function ProductSearch() {
         });
       } else {
         // No stores found
-        setResults({
+        const searchResult = {
           stores: [],
           searchedProduct: productName,
           totalResults: 0
-        });
+        };
+        
+        sessionStorage.setItem('searchResults', JSON.stringify(searchResult));
+        navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
 
         toast({
           title: "No Results",
@@ -615,196 +604,6 @@ export function ProductSearch() {
           </Button>
         </CardContent>
       </Card>
-
-      {/* Results */}
-      {results && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">
-              Results for "{results.searchedProduct}"
-            </h2>
-            <Badge variant="secondary">
-              {results.totalResults} store{results.totalResults !== 1 ? 's' : ''} found
-            </Badge>
-          </div>
-
-          {results.totalResults === 0 ? (
-            <Card>
-              <CardContent className="pt-6 text-center text-muted-foreground">
-                No stores found with this product in stock nearby.
-                Try searching for a different or similar product.
-              </CardContent>
-            </Card>
-          ) : (
-
-            <div className="grid gap-4">
-              {results.stores.filter(result => result != null).map((result, index) => {
-                // Safety check - skip if result is null or undefined
-                if (!result) {
-                  console.error('Found null result in filtered array at index:', index);
-                  return null;
-                }
-
-                const storeName = (result as any).store?.name || (result as any).name || 'Unknown Store';
-                const storeAddress = (result as any).store?.address || (result as any).address || 'Address not available';
-                const storePhone = (result as any).store?.phone;
-                const distance = (result as any).distance;
-                const storeType = (result as any).store_type || (result as any).store?.store_type;
-                // console.log('Store type for', storeName, ':', storeType);
-                const categoryImage = getCategoryImage(storeType);
-                // console.log('Category image for', storeType, ':', categoryImage);
-
-                return (
-                  <Card key={index} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="pt-6">
-                      <div className="flex gap-4">
-                        {/* LEFT SIDE: Image (square, height matches content) */}
-                        <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden relative">
-                          {/* Fallback icon (always present, but hidden unless image fails) */}
-                          <div className="absolute inset-0 w-full h-full flex items-center justify-center fallback-icon hidden">
-                            <Store className="h-8 w-8 text-muted-foreground" />
-                          </div>
-
-                          {/* Category image */}
-                          {categoryImage ? (
-                            <img
-                              src={categoryImage}
-                              alt={`${storeType} category`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const img = e.currentTarget;
-                                img.style.display = 'none';
-                                const fallback = img.parentElement?.querySelector('.fallback-icon') as HTMLElement;
-                                if (fallback) fallback.style.display = 'flex';
-                              }}
-                            />
-                          ) : (
-                            // If no image provided at all, show fallback immediately
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Store className="h-8 w-8 text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
-
-
-                        {/* CENTER: Store Information */}
-                        <div className="flex-1">
-                          {/* Store name with category tag */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <button
-                              onClick={() => {
-                                const storeData = {
-                                  name: storeName,
-                                  address: storeAddress,
-                                  product: results?.searchedProduct || productName,
-                                  phone: (result as any).phone || storePhone,
-                                  website: (result as any).url || (result as any).verification?.website,
-                                  storeType: (result as any).store_type || (result as any).store?.store_type,
-                                  isOpen: (result as any).isOpen ?? (result as any).verification?.isOpen,
-                                  openingHours: (result as any).openingHours || (result as any).verification?.openingHours,
-                                };
-                                navigate(`/store/${encodeURIComponent(storeName)}`, { state: storeData });
-                              }}
-                              className="text-xl font-semibold text-primary hover:underline cursor-pointer text-left"
-                            >
-                              {storeName}
-                            </button>
-                            {(result as any).channel && (
-                              <Badge variant="outline" className="text-xs px-2 py-1 bg-secondary/10 text-secondary-foreground border-secondary/20 flex items-center gap-1">
-                                <Tag className="h-3 w-3" />
-                                {(result as any).channel}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Location */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">{storeAddress}</span>
-                          </div>
-
-                          {/* Distance (if available) */}
-                          {distance && (
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-sm font-medium text-blue-600">
-                                📍 {distance.toFixed(1)} km away
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Phone (if available) */}
-                          {storePhone && (
-                            <div className="flex items-center gap-2 mb-2">
-                              <Phone className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground">{storePhone}</span>
-                            </div>
-                          )}
-
-                        </div>
-
-                        {/* RIGHT SIDE: Status and Actions */}
-                        <div className="flex flex-col justify-between items-end min-w-[120px]">
-                          {/* Open Now tag at the top */}
-                          <div>
-                            {((result as any).isOpen !== undefined && (result as any).isOpen !== null) ? (
-                              <Badge
-                                variant="outline"
-                                className={`${(result as any).isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
-                              >
-                                <Clock className="h-3 w-3 mr-1" />
-                                {(result as any).isOpen ? 'Open Now' : 'Closed Now'}
-                              </Badge>
-                            ) : (result as any).verification && typeof (result as any).verification.isOpen === 'boolean' && (
-                              <Badge
-                                variant="outline"
-                                className={`${(result as any).verification.isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
-                              >
-                                <Clock className="h-3 w-3 mr-1" />
-                                {(result as any).verification.isOpen ? 'Open Now' : 'Closed Now'}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Action buttons centered vertically */}
-                          <div className="flex-1 flex flex-col items-center justify-center gap-2 mt-4">
-                            {/* Check for website from verification or direct store data */}
-                            {((result as any).verification?.website || (result as any).url) && (
-                              <Button variant="default" size="sm" asChild>
-                                <a
-                                  href={(result as any).verification?.website || (result as any).url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2"
-                                >
-                                  Visit Website <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
-
-                            {/* View on Maps button */}
-                            {storeAddress && (
-                              <Button variant="outline" size="sm" asChild>
-                                <a
-                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(storeAddress)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2"
-                                >
-                                  View on Maps <MapPin className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
