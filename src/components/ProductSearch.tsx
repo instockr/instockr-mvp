@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, MapPin, Loader2, Globe, Store, ExternalLink, ChevronDown, Phone, Clock, CheckCircle, XCircle, Tag } from "lucide-react";
+import { Search, MapPin, Loader2, Globe, ExternalLink, ChevronDown, Store, Phone, Clock, CheckCircle, XCircle, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,52 +8,24 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import instockrLogo from "@/assets/instockr-logo.png";
+
 import mobilePhoneImage from "@/assets/categories/mobile-phone.png";
+import electronicsImage from "@/assets/categories/electronics.jpg";
+import computerImage from "@/assets/categories/computer.jpg";
 
-interface Store {
-  store: {
-    id: string;
-    name: string;
-    address: string;
-    phone: string;
-    store_type: string;
-    latitude: number;
-    longitude: number;
-  };
-  product: {
-    id: string;
-    name: string;
-    brand: string;
-    category: string;
-  };
-  price: number;
-  distance: number;
-  last_updated: string;
-}
-
-interface OnlineStore {
+export interface StoreInterface {
   id: string;
   name: string;
   store_type: string;
   address: string;
-  distance: null;
-  latitude: null;
-  longitude: null;
-  phone: null;
-  product: {
-    name: string;
-    price: string;
-    description?: string;
-    availability?: string;
-  };
-  url?: string;
-  isOnline: boolean;
-}
-
-interface SearchResult {
-  stores: Store[];
-  searchedProduct: string;
-  totalResults: number;
+  distance: number;
+  latitude: number;
+  longitude: number;
+  phone: string | null;
+  url: string;
+  source: string;
+  place_id: string;
+  openingHours: any[];
 }
 
 export function ProductSearch() {
@@ -65,7 +37,7 @@ export function ProductSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  
+
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -118,11 +90,11 @@ export function ProductSearch() {
     if (savedProductName) {
       setProductName(savedProductName);
     }
-    
+
     if (savedLocation) {
       setLocation(savedLocation);
     }
-    
+
     if (savedResults) {
       try {
         const parsedResults = JSON.parse(savedResults);
@@ -177,17 +149,17 @@ export function ProductSearch() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        
+
         // Reverse geocode to get detailed address using Nominatim
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
           );
           const data = await response.json();
-          
+
           // Build more precise location string from address components
           let locationParts = [];
-          
+
           if (data.address) {
             // Add street info if available
             if (data.address.road) {
@@ -197,32 +169,32 @@ export function ProductSearch() {
                 locationParts.push(data.address.road);
               }
             }
-            
+
             // Add district/suburb if available
             if (data.address.suburb || data.address.city_district) {
               locationParts.push(data.address.suburb || data.address.city_district);
             }
-            
+
             // Add city
             if (data.address.city || data.address.town || data.address.village) {
               locationParts.push(data.address.city || data.address.town || data.address.village);
             }
-            
+
             // Add state if available
             if (data.address.state) {
               locationParts.push(data.address.state);
             }
-            
+
             // Add country
             if (data.address.country) {
               locationParts.push(data.address.country);
             }
           }
-          
-          const detailedLocation = locationParts.length > 0 ? 
-            locationParts.join(', ') : 
+
+          const detailedLocation = locationParts.length > 0 ?
+            locationParts.join(', ') :
             `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-          
+
           setLocation(detailedLocation);
           setIsGettingLocation(false);
           toast({
@@ -250,72 +222,53 @@ export function ProductSearch() {
     );
   };
 
-// Calculate distance between two points using Haversine formula
-const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
+  // Calculate distance between two points using Haversine formula
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
-const geocodeLocation = async (locationStr: string) => {
-    // Check if it's already coordinates (lat, lng format)
+  const geocodeLocation = async (locationStr: string) => {
+    // Case 1: already coordinates (lat, lng)
     const coordMatch = locationStr.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
     if (coordMatch) {
       return {
         lat: parseFloat(coordMatch[1]),
-        lng: parseFloat(coordMatch[2])
+        lng: parseFloat(coordMatch[2]),
       };
     }
-    
-    // First try to use a simple city-to-coordinates mapping for popular cities
-    const cityCoordinates: Record<string, { lat: number; lng: number }> = {
-      "milan, italy": { lat: 45.4642, lng: 9.1900 },
-      "paris, france": { lat: 48.8566, lng: 2.3522 },
-      "london, uk": { lat: 51.5074, lng: -0.1278 },
-      "new york, ny": { lat: 40.7128, lng: -74.0060 },
-      "los angeles, ca": { lat: 34.0522, lng: -118.2437 },
-      "chicago, il": { lat: 41.8781, lng: -87.6298 },
-      "berlin, germany": { lat: 52.5200, lng: 13.4050 },
-      "madrid, spain": { lat: 40.4168, lng: -3.7038 },
-      "rome, italy": { lat: 41.9028, lng: 12.4964 },
-      "amsterdam, netherlands": { lat: 52.3676, lng: 4.9041 },
-      "barcelona, spain": { lat: 41.3851, lng: 2.1734 },
-      "vienna, austria": { lat: 48.2082, lng: 16.3738 },
-      "frankfurt am main, germany": { lat: 50.1109, lng: 8.6821 }
-    };
-    
-    const normalizedLocation = locationStr.toLowerCase();
-    if (cityCoordinates[normalizedLocation]) {
-      return cityCoordinates[normalizedLocation];
-    }
-    
-    // Try free geocoding service as fallback
+
+    // Case 2: free geocoding with Nominatim
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationStr)}&limit=1`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          locationStr
+        )}&limit=1&addressdetails=1`
       );
       const data = await response.json();
-      
+
       if (data && data.length > 0) {
         return {
           lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon)
+          lng: parseFloat(data[0].lon),
         };
       }
     } catch (error) {
-      console.error('Geocoding error:', error);
+      console.error("Geocoding error:", error);
     }
-    
-    throw new Error(`Location "${locationStr}" not found. Please try a major city name.`);
+
+    throw new Error(`Location "${locationStr}" not found. Please try again.`);
   };
+
 
   const handleSearch = async () => {
     if (!productName.trim()) {
@@ -343,7 +296,7 @@ const geocodeLocation = async (locationStr: string) => {
     let locationCoords = null;
     try {
       locationCoords = await geocodeLocation(location);
-      console.log('Location validated:', locationCoords);
+      //console.log('Location validated:', locationCoords);
     } catch (geocodeError) {
       console.error('Location validation failed:', geocodeError);
       toast({
@@ -357,15 +310,15 @@ const geocodeLocation = async (locationStr: string) => {
 
     try {
       // Step 1: Generate LLM-powered search strategies
-      console.log('Generating search strategies...');
+      //console.log('Generating search strategies...');
       const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
-        body: { 
+        body: {
           productName: productName.trim(),
           location: location.trim()
         }
       });
 
-      console.log(strategiesResponse)
+      //console.log(strategiesResponse)
 
       // Step 2: Look for the categories on OverPass
       const searchPromises = [];
@@ -381,85 +334,49 @@ const geocodeLocation = async (locationStr: string) => {
         return;
       } else {
         const storeCategories = strategiesResponse.data?.searchTerms || [];
-        console.log('Generated store categories:', storeCategories);
-        
-        // Add the product name as a separate search term
-        const searchTerms = [...storeCategories, productName.trim()];
-        console.log('Final search terms (categories + product):', searchTerms);
+        // console.log('Generated store categories:', storeCategories);
 
         // Use the categories directly for OSM search
         const searchPromise = supabase.functions.invoke('search-osm-stores', {
           body: {
-            productName: productName.trim(),
-            userLat: locationCoords?.lat || 45.4642,
-            userLng: locationCoords?.lng || 9.19,
-            radius: 50,
+            userLat: locationCoords?.lat,
+            userLng: locationCoords?.lng,
+            radius: 5000,
             categories: storeCategories
           }
         });
-        searchPromises.push(searchPromise.then(result => ({ source: 'openstreetmap', strategy: 'generated_categories', result })));
-
-        
-        console.log(`Total search promises created: ${searchPromises.length}`);
+        searchPromises.push(searchPromise.then(result => ({ source: 'openstreetmap', strategy: 'generated_categories', stores: result.data.stores, totalResults: result.data.totalResults })));
       }
 
       // Wait for all searches to complete
       // console.log('Executing parallel searches across all channels...');
-      const allResults = await Promise.all(searchPromises);
-      
-      // Step 3: Combine all OpenStreetMap results
-      const finalStores: Store[] = [];
-      
-      allResults.forEach((searchResult, index) => {
-        if (searchResult.result && searchResult.result.data && searchResult.result.data.stores && Array.isArray(searchResult.result.data.stores)) {
-          // All stores come from OpenStreetMap
-          const storesWithVerification = searchResult.result.data.stores.map((store: any) => ({
-            ...store,
-            verification: {
-              verified: true,
-              osmId: store.place_id || `osm-${store.id}`,
-              rating: store.rating,
-              userRatingsTotal: store.userRatingsTotal,
-              isOpen: store.isOpen,
-              openingHours: store.openingHours || [],
-              photoUrl: store.photoUrl,
-              website: store.url
-            }
-          }));
-          finalStores.push(...storesWithVerification);
-        }
-      });
+      const allStores = (await Promise.all(searchPromises)).flat();
 
-      // Step 4: Deduplicate stores by address
-      const deduplicationResponse = await supabase.functions.invoke('simple-deduplication', {
-        body: { stores: finalStores }
-      });
+      const osmStores = allStores[0]
 
-      let deduplicatedStores = finalStores;
-      if (deduplicationResponse.data?.deduplicatedStores) {
-        deduplicatedStores = deduplicationResponse.data.deduplicatedStores;
-      }
+      //console.log(osmStores)
 
-      // Step 5: Sort by distance (closest first)
-      deduplicatedStores.sort((a: any, b: any) => {
-        // Sort by distance (nulls/undefined last)
-        if (a.distance === null || a.distance === undefined) return 1;
-        if (b.distance === null || b.distance === undefined) return -1;
+      // sort by distance
+      allStores.sort((a, b) => {
+        if (a.distance == null) return 1;
+        if (b.distance == null) return -1;
         return a.distance - b.distance;
       });
 
       // Check if we have results
-      if (deduplicatedStores.length > 0) {
+      if (osmStores.totalResults > 0) {
         // Set final results
         setResults({
-          stores: deduplicatedStores,
+          stores: osmStores.stores,
           searchedProduct: productName,
-          totalResults: deduplicatedStores.length
+          totalResults: osmStores.totalResults
         });
+
+        console.log(results)
 
         toast({
           title: "Search Complete",
-          description: `Found ${deduplicatedStores.length} stores`,
+          description: `Found ${osmStores.totalResults} stores`,
         });
       } else {
         // No stores found
@@ -504,6 +421,8 @@ const geocodeLocation = async (locationStr: string) => {
     // Map store types to category images
     const categoryImages: Record<string, string> = {
       mobile_phone: mobilePhoneImage,
+      electronics: electronicsImage,
+      computer: computerImage,
       // Add more categories as needed
     };
     return categoryImages[storeType] || null;
@@ -514,9 +433,9 @@ const geocodeLocation = async (locationStr: string) => {
       {/* Header */}
       <div className="text-center space-y-6">
         <div className="flex items-center justify-center gap-4">
-          <img 
-            src={instockrLogo} 
-            alt="InStockr Logo" 
+          <img
+            src={instockrLogo}
+            alt="InStockr Logo"
             className="w-20 h-20 drop-shadow-lg"
           />
           <h1 className="text-6xl font-bold bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
@@ -554,7 +473,7 @@ const geocodeLocation = async (locationStr: string) => {
           <div className="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-br from-green-400/20 to-teal-400/20 rounded-full animate-pulse delay-1000"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-gradient-to-br from-pink-400/10 to-orange-400/10 rounded-full animate-pulse delay-500"></div>
         </div>
-        
+
         <CardContent className="pt-8 pb-8 space-y-6 relative z-10">
           <div className="space-y-3">
             <label htmlFor="product" className="text-sm font-semibold flex items-center gap-2 text-foreground">
@@ -579,7 +498,7 @@ const geocodeLocation = async (locationStr: string) => {
               </div>
             </div>
           </div>
-          
+
           <div className="space-y-3 relative">
             <label htmlFor="location" className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <div className="p-1.5 rounded-lg bg-gradient-to-r from-green-500 to-teal-500 text-white">
@@ -652,8 +571,8 @@ const geocodeLocation = async (locationStr: string) => {
             </div>
           </div>
 
-          <Button 
-            onClick={handleSearch} 
+          <Button
+            onClick={handleSearch}
             disabled={isLoading}
             className="w-full py-4 text-lg font-semibold bg-gradient-to-r from-purple-600 via-blue-600 to-teal-600 
                       hover:from-purple-700 hover:via-blue-700 hover:to-teal-700 text-white border-0 shadow-xl
@@ -664,7 +583,7 @@ const geocodeLocation = async (locationStr: string) => {
             {/* Animated shimmer effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
                           translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-            
+
             <div className="relative z-10 flex items-center justify-center">
               {isLoading ? (
                 <>
@@ -694,7 +613,7 @@ const geocodeLocation = async (locationStr: string) => {
             </Badge>
           </div>
 
-          {results.stores.length === 0 ? (
+          {results.totalResults === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center text-muted-foreground">
                 No stores found with this product in stock nearby.
@@ -702,6 +621,7 @@ const geocodeLocation = async (locationStr: string) => {
               </CardContent>
             </Card>
           ) : (
+
             <div className="grid gap-4">
               {results.stores.filter(result => result != null).map((result, index) => {
                 // Safety check - skip if result is null or undefined
@@ -709,172 +629,160 @@ const geocodeLocation = async (locationStr: string) => {
                   console.error('Found null result in filtered array at index:', index);
                   return null;
                 }
-                
-                // Check if we have proper store data
-                const hasLocalStructure = 'store' in result && result.store?.name;
-                const hasDirectStructure = 'name' in result && result.name;
-                
-                if (!hasLocalStructure && !hasDirectStructure) {
-                  return null;
-                }
-                
-                if (!result.product?.name) {
-                  return null;
-                }
-                
+
                 const storeName = (result as any).store?.name || (result as any).name || 'Unknown Store';
                 const storeAddress = (result as any).store?.address || (result as any).address || 'Address not available';
                 const storePhone = (result as any).store?.phone;
                 const distance = (result as any).distance;
                 const storeType = (result as any).store_type || (result as any).store?.store_type;
-                console.log('Store type for', storeName, ':', storeType);
+                // console.log('Store type for', storeName, ':', storeType);
                 const categoryImage = getCategoryImage(storeType);
-                console.log('Category image for', storeType, ':', categoryImage);
-                
+                // console.log('Category image for', storeType, ':', categoryImage);
+
                 return (
                   <Card key={index} className="hover:shadow-lg transition-shadow">
-                     <CardContent className="pt-6">
-                         <div className="flex gap-4">
-                            {/* LEFT SIDE: Image (square, height matches content) */}
-<div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden relative">
-  {/* Fallback icon (always present, but hidden unless image fails) */}
-  <div className="absolute inset-0 w-full h-full flex items-center justify-center fallback-icon hidden">
-    <Store className="h-8 w-8 text-muted-foreground" />
-  </div>
-
-  {/* Category image */}
-  {categoryImage ? (
-    <img
-      src={categoryImage}
-      alt={`${storeType} category`}
-      className="w-full h-full object-cover"
-      onError={(e) => {
-        const img = e.currentTarget;
-        img.style.display = 'none';
-        const fallback = img.parentElement?.querySelector('.fallback-icon') as HTMLElement;
-        if (fallback) fallback.style.display = 'flex';
-      }}
-    />
-  ) : (
-    // If no image provided at all, show fallback immediately
-    <div className="w-full h-full flex items-center justify-center">
-      <Store className="h-8 w-8 text-muted-foreground" />
-    </div>
-  )}
-</div>
-
-
-                          {/* CENTER: Store Information */}
-                          <div className="flex-1">
-                            {/* Store name with category tag */}
-                            <div className="flex items-center gap-2 mb-2">
-                              <button
-                                onClick={() => {
-                                   const storeData = {
-                                     name: storeName,
-                                     address: storeAddress,
-                                     product: results?.searchedProduct || productName,
-                                     phone: (result as any).phone || storePhone,
-                                     website: (result as any).url || (result as any).verification?.website,
-                                     storeType: (result as any).store_type || (result as any).store?.store_type,
-                                     isOpen: (result as any).isOpen ?? (result as any).verification?.isOpen,
-                                     openingHours: (result as any).openingHours || (result as any).verification?.openingHours,
-                                   };
-                                  navigate(`/store/${encodeURIComponent(storeName)}`, { state: storeData });
-                                }}
-                                className="text-xl font-semibold text-primary hover:underline cursor-pointer text-left"
-                              >
-                                {storeName}
-                              </button>
-                               {(result as any).channel && (
-                                 <Badge variant="outline" className="text-xs px-2 py-1 bg-secondary/10 text-secondary-foreground border-secondary/20 flex items-center gap-1">
-                                   <Tag className="h-3 w-3" />
-                                   {(result as any).channel}
-                                 </Badge>
-                               )}
-                            </div>
-                            
-                            {/* Location */}
-                            <div className="flex items-center gap-2 mb-2">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground">{storeAddress}</span>
-                            </div>
-                            
-                            {/* Distance (if available) */}
-                            {distance && (
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-sm font-medium text-blue-600">
-                                  📍 {distance.toFixed(1)} km away
-                                </span>
-                              </div>
-                            )}
-                            
-                            {/* Phone (if available) */}
-                            {storePhone && (
-                              <div className="flex items-center gap-2 mb-2">
-                                <Phone className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">{storePhone}</span>
-                              </div>
-                            )}
-                            
+                    <CardContent className="pt-6">
+                      <div className="flex gap-4">
+                        {/* LEFT SIDE: Image (square, height matches content) */}
+                        <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+                          {/* Fallback icon (always present, but hidden unless image fails) */}
+                          <div className="absolute inset-0 w-full h-full flex items-center justify-center fallback-icon hidden">
+                            <Store className="h-8 w-8 text-muted-foreground" />
                           </div>
 
-                          {/* RIGHT SIDE: Status and Actions */}
-                          <div className="flex flex-col justify-between items-end min-w-[120px]">
-                             {/* Open Now tag at the top */}
-                             <div>
-                               {((result as any).isOpen !== undefined && (result as any).isOpen !== null) ? (
-                                 <Badge 
-                                   variant="outline" 
-                                   className={`${(result as any).isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
-                                 >
-                                   <Clock className="h-3 w-3 mr-1" />
-                                   {(result as any).isOpen ? 'Open Now' : 'Closed Now'}
-                                 </Badge>
-                               ) : (result as any).verification && typeof (result as any).verification.isOpen === 'boolean' && (
-                                 <Badge 
-                                   variant="outline" 
-                                   className={`${(result as any).verification.isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
-                                 >
-                                   <Clock className="h-3 w-3 mr-1" />
-                                   {(result as any).verification.isOpen ? 'Open Now' : 'Closed Now'}
-                                 </Badge>
-                               )}
-                             </div>
-                            
-                            {/* Action buttons centered vertically */}
-                             <div className="flex-1 flex flex-col items-center justify-center gap-2 mt-4">
-                               {/* Check for website from verification or direct store data */}
-                               {((result as any).verification?.website || (result as any).url) && (
-                                 <Button variant="default" size="sm" asChild>
-                                   <a 
-                                     href={(result as any).verification?.website || (result as any).url} 
-                                     target="_blank" 
-                                     rel="noopener noreferrer"
-                                     className="flex items-center gap-2"
-                                   >
-                                     Visit Website <ExternalLink className="h-4 w-4" />
-                                   </a>
-                                 </Button>
-                               )}
-                              
-                              {/* View on Maps button */}
-                              {storeAddress && (
-                                <Button variant="outline" size="sm" asChild>
-                                  <a 
-                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(storeAddress)}`}
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2"
-                                  >
-                                    View on Maps <MapPin className="h-4 w-4" />
-                                  </a>
-                                </Button>
-                              )}
+                          {/* Category image */}
+                          {categoryImage ? (
+                            <img
+                              src={categoryImage}
+                              alt={`${storeType} category`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const img = e.currentTarget;
+                                img.style.display = 'none';
+                                const fallback = img.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                          ) : (
+                            // If no image provided at all, show fallback immediately
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Store className="h-8 w-8 text-muted-foreground" />
                             </div>
+                          )}
+                        </div>
+
+
+                        {/* CENTER: Store Information */}
+                        <div className="flex-1">
+                          {/* Store name with category tag */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <button
+                              onClick={() => {
+                                const storeData = {
+                                  name: storeName,
+                                  address: storeAddress,
+                                  product: results?.searchedProduct || productName,
+                                  phone: (result as any).phone || storePhone,
+                                  website: (result as any).url || (result as any).verification?.website,
+                                  storeType: (result as any).store_type || (result as any).store?.store_type,
+                                  isOpen: (result as any).isOpen ?? (result as any).verification?.isOpen,
+                                  openingHours: (result as any).openingHours || (result as any).verification?.openingHours,
+                                };
+                                navigate(`/store/${encodeURIComponent(storeName)}`, { state: storeData });
+                              }}
+                              className="text-xl font-semibold text-primary hover:underline cursor-pointer text-left"
+                            >
+                              {storeName}
+                            </button>
+                            {(result as any).channel && (
+                              <Badge variant="outline" className="text-xs px-2 py-1 bg-secondary/10 text-secondary-foreground border-secondary/20 flex items-center gap-1">
+                                <Tag className="h-3 w-3" />
+                                {(result as any).channel}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Location */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">{storeAddress}</span>
+                          </div>
+
+                          {/* Distance (if available) */}
+                          {distance && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-sm font-medium text-blue-600">
+                                📍 {distance.toFixed(1)} km away
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Phone (if available) */}
+                          {storePhone && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <Phone className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">{storePhone}</span>
+                            </div>
+                          )}
+
+                        </div>
+
+                        {/* RIGHT SIDE: Status and Actions */}
+                        <div className="flex flex-col justify-between items-end min-w-[120px]">
+                          {/* Open Now tag at the top */}
+                          <div>
+                            {((result as any).isOpen !== undefined && (result as any).isOpen !== null) ? (
+                              <Badge
+                                variant="outline"
+                                className={`${(result as any).isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
+                              >
+                                <Clock className="h-3 w-3 mr-1" />
+                                {(result as any).isOpen ? 'Open Now' : 'Closed Now'}
+                              </Badge>
+                            ) : (result as any).verification && typeof (result as any).verification.isOpen === 'boolean' && (
+                              <Badge
+                                variant="outline"
+                                className={`${(result as any).verification.isOpen ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700'}`}
+                              >
+                                <Clock className="h-3 w-3 mr-1" />
+                                {(result as any).verification.isOpen ? 'Open Now' : 'Closed Now'}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Action buttons centered vertically */}
+                          <div className="flex-1 flex flex-col items-center justify-center gap-2 mt-4">
+                            {/* Check for website from verification or direct store data */}
+                            {((result as any).verification?.website || (result as any).url) && (
+                              <Button variant="default" size="sm" asChild>
+                                <a
+                                  href={(result as any).verification?.website || (result as any).url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2"
+                                >
+                                  Visit Website <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
+
+                            {/* View on Maps button */}
+                            {storeAddress && (
+                              <Button variant="outline" size="sm" asChild>
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(storeAddress)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2"
+                                >
+                                  View on Maps <MapPin className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
                           </div>
                         </div>
-                     </CardContent>
+                      </div>
+                    </CardContent>
                   </Card>
                 );
               })}

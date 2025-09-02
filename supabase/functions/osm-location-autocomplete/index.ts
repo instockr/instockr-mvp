@@ -1,4 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -13,7 +14,7 @@ serve(async (req) => {
 
   try {
     const { input } = await req.json();
-    
+
     if (!input || input.trim().length < 3) {
       return new Response(JSON.stringify({ predictions: [] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -21,7 +22,7 @@ serve(async (req) => {
     }
 
     console.log('Fetching autocomplete suggestions for:', input);
-    
+
     // Use Nominatim (OpenStreetMap) for location autocomplete
     const autocompleteUrl = new URL('https://nominatim.openstreetmap.org/search');
     autocompleteUrl.searchParams.set('format', 'json');
@@ -37,7 +38,7 @@ serve(async (req) => {
         'User-Agent': 'InStockr-App/1.0 (store-locator)'
       }
     });
-    
+
     const data = await response.json();
 
     if (response.ok && data && Array.isArray(data)) {
@@ -47,24 +48,24 @@ serve(async (req) => {
           // Filter for cities, towns, villages, and significant places
           const type = item.type;
           const addressType = item.address?.city || item.address?.town || item.address?.village;
-          return type === 'city' || type === 'town' || type === 'village' || 
-                 type === 'municipality' || addressType;
+          return type === 'city' || type === 'town' || type === 'village' ||
+            type === 'municipality' || addressType;
         })
         .map(item => {
           // Build display name from address components
           let displayName = '';
           if (item.address) {
-            const parts = [];
+            const parts: String[] = [];
             if (item.address.city) parts.push(item.address.city);
             else if (item.address.town) parts.push(item.address.town);
             else if (item.address.village) parts.push(item.address.village);
-            
+
             if (item.address.state) parts.push(item.address.state);
             if (item.address.country) parts.push(item.address.country);
-            
+
             displayName = parts.join(', ');
           }
-          
+
           if (!displayName) {
             displayName = item.display_name;
           }
@@ -81,7 +82,7 @@ serve(async (req) => {
         .slice(0, 5); // Limit to 5 results
 
       console.log(`Found ${predictions.length} autocomplete predictions`);
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         predictions: predictions,
         status: 'OK'
       }), {
@@ -89,7 +90,7 @@ serve(async (req) => {
       });
     } else {
       console.log('No results from Nominatim');
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         predictions: [],
         status: 'ZERO_RESULTS'
       }), {
@@ -99,7 +100,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in osm-location-autocomplete function:', error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: error.message,
       predictions: []
     }), {

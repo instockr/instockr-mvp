@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "lib": [
+            "deno.ns",
+            "deno.window"
+        ]
+    },
+    "tasks": {},
+    "lint": {},
+    "fmt": {}
+}

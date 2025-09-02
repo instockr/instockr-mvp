@@ -1,8 +1,11 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { HfInference } from 'https://esm.sh/@huggingface/inference@2.3.2';
 import { OSM_SHOP_CATEGORIES, CATEGORY_DESCRIPTIONS } from '../osm-shop-categories.ts';
+// @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// @ts-ignore
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore
+import { HfInference } from 'https://esm.sh/@huggingface/inference@2.3.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,19 +19,19 @@ serve(async (req) => {
 
   try {
     const { productName, location } = await req.json();
-    console.log('Generating search terms for:', productName, 'in location:', location);
-    
+    console.log('Generating search terms for:', productName);
+
     // Use AI-powered category matching
     const searchTerms = await generateAISearchTerms(productName, location);
-    
+
     return new Response(JSON.stringify({ searchTerms }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Error in generate-search-strategies function:', error);
-    return new Response(JSON.stringify({ 
-      error: 'Unable to process product name. Please try a different product.' 
+    return new Response(JSON.stringify({
+      error: 'Unable to process product name. Please try a different product.'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500
@@ -40,7 +43,9 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
   try {
     // Initialize Supabase client
     const supabase = createClient(
+      // @deno-types
       Deno.env.get('SUPABASE_URL') ?? '',
+      // @deno-types
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
@@ -71,9 +76,9 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
 
     // Use Hugging Face for semantic similarity
     const hf = new HfInference(hfToken);
-    
+
     console.log('Generating similarities for:', normalizedProductName);
-    
+
     // Use sentence similarity to compare product with all categories at once
     const similarities = await hf.sentenceSimilarity({
       model: 'sentence-transformers/all-MiniLM-L6-v2',
@@ -121,7 +126,7 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
 
   } catch (error) {
     console.error('Error in AI categorization:', error);
-    // If AI fails, return empty array (no fallback as per user request)
+    // If AI fails, return empty array
     return [];
   }
 }
