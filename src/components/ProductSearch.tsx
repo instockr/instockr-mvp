@@ -28,6 +28,12 @@ export interface StoreInterface {
   openingHours: any[];
 }
 
+interface SearchResult {
+  stores: StoreInterface[];
+  searchedProduct: string;
+  totalResults: number;
+}
+
 export function ProductSearch() {
   const [productName, setProductName] = useState("");
   const [location, setLocation] = useState("");
@@ -37,6 +43,7 @@ export function ProductSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isLocationAutoDetected, setIsLocationAutoDetected] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -73,12 +80,15 @@ export function ProductSearch() {
   };
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchLocationSuggestions(location);
-    }, 300); // Debounce API calls
+    // Only fetch suggestions if location wasn't auto-detected
+    if (!isLocationAutoDetected) {
+      const timeoutId = setTimeout(() => {
+        fetchLocationSuggestions(location);
+      }, 300); // Debounce API calls
 
-    return () => clearTimeout(timeoutId);
-  }, [location]);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [location, isLocationAutoDetected]);
 
   // Load persisted data on component mount
   useEffect(() => {
@@ -196,6 +206,7 @@ export function ProductSearch() {
             `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
           setLocation(detailedLocation);
+          setIsLocationAutoDetected(true);
           setIsGettingLocation(false);
           toast({
             title: "Location found",
@@ -203,6 +214,7 @@ export function ProductSearch() {
           });
         } catch (error) {
           setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+          setIsLocationAutoDetected(true);
           setIsGettingLocation(false);
           toast({
             title: "Location found",
@@ -512,7 +524,10 @@ export function ProductSearch() {
                   id="location"
                   placeholder="Enter city name (e.g., Milan, New York, Paris)"
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  onChange={(e) => {
+                    setLocation(e.target.value);
+                    setIsLocationAutoDetected(false); // Reset flag when user types
+                  }}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   onFocus={() => location.length > 2 && setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
