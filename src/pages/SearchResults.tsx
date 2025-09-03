@@ -533,7 +533,7 @@ export default function SearchResults() {
         )}
 
         {/* Desktop layout - side by side */}
-        <div className="hidden lg:flex gap-6 h-[calc(100vh-280px)]">
+        <div className="hidden lg:flex gap-4 h-[calc(100vh-240px)]">
           {/* Store list */}
           <div className="w-1/2 overflow-y-auto">
             <Card className="h-full">
@@ -554,7 +554,7 @@ export default function SearchResults() {
                 <CardTitle>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0 h-[calc(100%-60px)]">
+              <CardContent className="p-2 h-[calc(100%-60px)]">
                 <OpenLayersMap
                   stores={results?.stores || []}
                   highlightedStoreId={highlightedStoreId}
@@ -599,7 +599,7 @@ export default function SearchResults() {
             <TabsContent value="map" className="mt-0">
               <Card>
                 <CardContent className="p-4">
-                  <div className="h-[70vh] w-full">
+                  <div className="h-[75vh] w-full">
                     <OpenLayersMap
                       stores={results?.stores || []}
                       highlightedStoreId={highlightedStoreId}
