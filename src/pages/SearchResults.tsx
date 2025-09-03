@@ -58,7 +58,11 @@ export default function SearchResults() {
       
       console.log('Geocoding URL:', geocodeUrl);
       
-      const response = await fetch(geocodeUrl);
+      const response = await fetch(geocodeUrl, {
+        headers: {
+          'User-Agent': 'InStockr-App/1.0 (store-locator)'
+        }
+      });
       const data = await response.json();
       
       console.log('Nominatim geocoding response:', data);
