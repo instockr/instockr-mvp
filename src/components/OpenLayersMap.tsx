@@ -37,6 +37,67 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
   const overlayRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const overlayInstanceRef = useRef<Overlay | null>(null);
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Get user location
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          userLocationRef.current = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          // Re-render map with user location if map is already initialized
+          if (mapInstanceRef.current) {
+            addUserLocationMarker();
+          }
+        },
+        (error) => {
+          console.log('Geolocation error:', error);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+  }, []);
+
+  const addUserLocationMarker = () => {
+    if (!mapInstanceRef.current || !userLocationRef.current) return;
+
+    const vectorLayer = mapInstanceRef.current.getLayers().getArray()[1] as VectorLayer<VectorSource>;
+    const source = vectorLayer.getSource();
+
+    // Create user location marker
+    const userMarker = new Feature({
+      geometry: new Point(fromLonLat([userLocationRef.current.lng, userLocationRef.current.lat])),
+      isUserLocation: true,
+    });
+
+    userMarker.setStyle(
+      new Style({
+        image: new Icon({
+          anchor: [0.5, 1],
+          src: 'data:image/svg+xml;base64,' + btoa(`
+            <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <filter id="userShadow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.3"/>
+                </filter>
+              </defs>
+              <path fill="#10B981" stroke="#059669" stroke-width="2" filter="url(#userShadow)" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+              <circle fill="white" cx="12" cy="12" r="6"/>
+              <circle fill="#059669" cx="12" cy="12" r="3">
+                <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite"/>
+              </circle>
+            </svg>
+          `),
+          scale: 1.1,
+        }),
+      })
+    );
+
+    source?.addFeature(userMarker);
+  };
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -79,19 +140,15 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
           image: new Icon({
             anchor: [0.5, 1],
             src: 'data:image/svg+xml;base64,' + btoa(`
-              <svg width="32" height="48" viewBox="0 0 32 48" xmlns="http://www.w3.org/2000/svg">
+              <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                  <linearGradient id="markerGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
-                  </linearGradient>
                   <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
                     <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.25"/>
                   </filter>
                 </defs>
-                <path fill="url(#markerGradient)" stroke="#1E40AF" stroke-width="2" filter="url(#shadow)" d="M16 0C7.2 0 0 7.2 0 16c0 16 16 32 16 32s16-16 16-32C32 7.2 24.8 0 16 0z"/>
-                <circle fill="white" cx="16" cy="16" r="8"/>
-                <circle fill="#3B82F6" cx="16" cy="16" r="4"/>
+                <path fill="#3B82F6" stroke="#1E40AF" stroke-width="2" filter="url(#shadow)" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+                <circle fill="white" cx="12" cy="12" r="6"/>
+                <circle fill="#1E40AF" cx="12" cy="12" r="3"/>
               </svg>
             `),
             scale: 1,
@@ -124,11 +181,14 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
 
     mapInstanceRef.current = map;
 
+    // Add user location marker if available
+    addUserLocationMarker();
+
     // Handle click events
     map.on('click', (evt) => {
       const feature = map.forEachFeatureAtPixel(evt.pixel, (feature) => feature);
       
-      if (feature) {
+      if (feature && !feature.get('isUserLocation')) {
         const store = feature.get('store') as Store;
         const coordinate = evt.coordinate;
         
@@ -167,6 +227,26 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
             </div>
           `;
         }
+      } else if (feature && feature.get('isUserLocation')) {
+        const coordinate = evt.coordinate;
+        
+        // Show user location popup
+        overlay.setPosition(coordinate);
+        
+        if (overlayRef.current) {
+          overlayRef.current.innerHTML = `
+            <div class="bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-green-200 min-w-[180px] relative">
+              <div class="absolute -top-2 left-6 w-4 h-4 bg-white/95 backdrop-blur-sm border-l border-t border-green-200 rotate-45"></div>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  <h3 class="font-semibold text-base text-green-800">Your Location</h3>
+                </div>
+                <p class="text-sm text-green-600">You are here</p>
+              </div>
+            </div>
+          `;
+        }
       } else {
         overlay.setPosition(undefined);
       }
@@ -176,7 +256,7 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
     map.on('pointermove', (evt) => {
       const feature = map.forEachFeatureAtPixel(evt.pixel, (feature) => feature);
       
-      if (feature) {
+      if (feature && !feature.get('isUserLocation')) {
         const store = feature.get('store') as Store;
         onStoreHover?.(store.id);
         const target = map.getTarget() as HTMLElement;
@@ -211,24 +291,20 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
           image: new Icon({
             anchor: [0.5, 1],
             src: 'data:image/svg+xml;base64=' + btoa(`
-              <svg width="32" height="48" viewBox="0 0 32 48" xmlns="http://www.w3.org/2000/svg">
+              <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                  <linearGradient id="markerGradient${isHighlighted ? 'Highlighted' : ''}" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style="stop-color:${isHighlighted ? '#EF4444' : '#3B82F6'};stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:${isHighlighted ? '#DC2626' : '#1E40AF'};stop-opacity:1" />
-                  </linearGradient>
-                  <filter id="shadow${isHighlighted ? 'Highlighted' : ''}" x="-50%" y="-50%" width="200%" height="200%">
+                  <filter id="shadow${isHighlighted ? 'H' : ''}" x="-50%" y="-50%" width="200%" height="200%">
                     <feDropShadow dx="0" dy="${isHighlighted ? '4' : '2'}" stdDeviation="${isHighlighted ? '6' : '3'}" flood-color="#000000" flood-opacity="${isHighlighted ? '0.4' : '0.25'}"/>
                   </filter>
                 </defs>
-                <path fill="url(#markerGradient${isHighlighted ? 'Highlighted' : ''})" stroke="${isHighlighted ? '#DC2626' : '#1E40AF'}" stroke-width="2" filter="url(#shadow${isHighlighted ? 'Highlighted' : ''})" d="M16 0C7.2 0 0 7.2 0 16c0 16 16 32 16 32s16-16 16-32C32 7.2 24.8 0 16 0z"/>
-                <circle fill="white" cx="16" cy="16" r="8"/>
-                <circle fill="${isHighlighted ? '#EF4444' : '#3B82F6'}" cx="16" cy="16" r="4">
-                  ${isHighlighted ? '<animate attributeName="r" values="4;7;4" dur="1.5s" repeatCount="indefinite"/>' : ''}
+                <path fill="${isHighlighted ? '#EF4444' : '#3B82F6'}" stroke="${isHighlighted ? '#DC2626' : '#1E40AF'}" stroke-width="2" filter="url(#shadow${isHighlighted ? 'H' : ''})" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+                <circle fill="white" cx="12" cy="12" r="6"/>
+                <circle fill="${isHighlighted ? '#DC2626' : '#1E40AF'}" cx="12" cy="12" r="3">
+                  ${isHighlighted ? '<animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite"/>' : ''}
                 </circle>
               </svg>
             `),
-            scale: isHighlighted ? 1.3 : 1,
+            scale: isHighlighted ? 1.2 : 1,
           }),
         })
       );
