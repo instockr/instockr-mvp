@@ -37,29 +37,42 @@ export default function SearchResults() {
   const [isLocationAutoDetected, setIsLocationAutoDetected] = useState(false);
 
   const geocodeLocation = async (locationStr: string) => {
+    console.log('geocodeLocation called with:', locationStr);
+    
     // Case 1: already coordinates (lat, lng)
     const coordMatch = locationStr.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
     if (coordMatch) {
-      return {
+      const coords = {
         lat: parseFloat(coordMatch[1]),
         lng: parseFloat(coordMatch[2]),
       };
+      console.log('Found coordinates in string format:', coords);
+      return coords;
     }
 
     // Case 2: free geocoding with Nominatim
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          locationStr
-        )}&limit=1&addressdetails=1`
-      );
+      const geocodeUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        locationStr
+      )}&limit=1&addressdetails=1`;
+      
+      console.log('Geocoding URL:', geocodeUrl);
+      
+      const response = await fetch(geocodeUrl);
       const data = await response.json();
+      
+      console.log('Nominatim geocoding response:', data);
 
       if (data && data.length > 0) {
-        return {
+        const result = {
           lat: parseFloat(data[0].lat),
           lng: parseFloat(data[0].lon),
         };
+        console.log('Geocoded coordinates:', result);
+        console.log('Full address from Nominatim:', data[0].display_name);
+        return result;
+      } else {
+        console.error('No geocoding results found for:', locationStr);
       }
     } catch (error) {
       console.error("Geocoding error:", error);
