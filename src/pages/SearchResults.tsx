@@ -485,17 +485,13 @@ export default function SearchResults() {
               )}
             </div>
 
-            {/* Map placeholder on the right */}
-            <div className="flex-1 flex items-center justify-center bg-muted/50 rounded-lg">
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">
-                  <MapPin className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Map View</h3>
-                <p className="text-muted-foreground text-sm">
-                  Interactive map coming soon
-                </p>
-              </div>
+            {/* Map on the right */}
+            <div className="flex-1">
+              <OpenLayersMap 
+                stores={results.stores}
+                highlightedStoreId={highlightedStoreId}
+                onStoreHover={setHighlightedStoreId}
+              />
             </div>
           </div>
         )}
