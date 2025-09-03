@@ -235,7 +235,7 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
       }
     });
 
-    // Handle hover events
+    // Handle hover events - SIMPLIFIED to just change cursor and trigger callback  
     map.on('pointermove', (evt) => {
       const feature = map.forEachFeatureAtPixel(evt.pixel, (feature) => feature);
       
@@ -257,39 +257,6 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
       }
     };
   }, [stores, onStoreHover]);
-
-  // Handle highlighted store
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-
-    const vectorLayer = mapInstanceRef.current.getLayers().getArray()[1] as VectorLayer<VectorSource>;
-    const source = vectorLayer.getSource();
-    
-    source?.forEachFeature((feature) => {
-      const store = feature.get('store') as Store;
-      
-      // Skip non-store features (like user location marker)
-      if (!store) return;
-      
-      const isHighlighted = store.id === highlightedStoreId;
-      
-      feature.setStyle(
-        new Style({
-          image: new Icon({
-            anchor: [0.5, 1],
-            src: 'data:image/svg+xml;base64=' + btoa(`
-              <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
-                <path fill="${isHighlighted ? '#EF4444' : '#3B82F6'}" stroke="${isHighlighted ? '#DC2626' : '#1E40AF'}" stroke-width="2" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
-                <circle fill="white" cx="12" cy="12" r="6"/>
-                <circle fill="${isHighlighted ? '#DC2626' : '#1E40AF'}" cx="12" cy="12" r="3"/>
-              </svg>
-            `),
-            scale: isHighlighted ? 1.2 : 1,
-          }),
-        })
-      );
-    });
-  }, [highlightedStoreId]);
 
   return (
     <div className="h-full w-full rounded-xl overflow-hidden shadow-xl border border-border/20 bg-gradient-to-br from-background to-muted/20 relative">
