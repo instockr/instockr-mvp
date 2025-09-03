@@ -16,19 +16,19 @@ interface Store {
   openingHours: string[];
 }
 
-// Helper to build simple, individual Overpass queries
+// Helper to build simple, individual Overpass queries with result limit
 function buildSimpleOverpassQuery(category: string, userLat: number, userLng: number, radiusMeters: number) {
   const queryRadius = Math.min(radiusMeters, 3000); // Max 3km for Overpass query
   
   if (category === 'shop=*') {
-    return `[out:json]; (
+    return `[out:json][limit:30]; (
       node["shop"](around:${queryRadius},${userLat},${userLng});
       way["shop"](around:${queryRadius},${userLat},${userLng});
     ); out center tags;`;
   }
   
   const [key, value] = category.includes('=') ? category.split('=') : [category, ''];
-  return `[out:json]; (
+  return `[out:json][limit:30]; (
     node["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
     way["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
   ); out center tags;`;
