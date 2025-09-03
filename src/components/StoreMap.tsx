@@ -7,27 +7,29 @@ import { StoreInterface } from './ProductSearch';
 // Fix for default markers in react-leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 
-let DefaultIcon = L.divIcon({
-  html: `<div style="width: 24px; height: 24px; background-color: hsl(var(--primary)); border-radius: 50%; border: 2px solid white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center;">
-    <div style="width: 12px; height: 12px; background-color: white; border-radius: 50%;"></div>
-  </div>`,
-  className: 'custom-div-icon',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+// Create proper default icon
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  iconRetinaUrl: iconRetina,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
 });
 
-let HighlightedIcon = L.divIcon({
-  html: `<div style="width: 32px; height: 32px; background-color: #ef4444; border-radius: 50%; border: 2px solid white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;">
-    <div style="width: 16px; height: 16px; background-color: white; border-radius: 50%;"></div>
-  </div>`,
-  className: 'custom-div-icon',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
+// Create highlighted icon (red version) - using a simple red marker SVG
+let HighlightedIcon = L.icon({
+  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUiIGhlaWdodD0iNDEiIHZpZXdCb3g9IjAgMCAyNSA0MSIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHA+YXRoIGQ9Ik0xMi41IDBDNS41OTY0NCAwIDAgNS41OTY0NCAwIDEyLjVDMCAyMi41IDEyLjUgNDEgMTIuNSA0MUMyNS4wIDQxIDI1IDIyLjUgMjUgMTIuNUMyNSA1LjU5NjQ0IDE5LjQwMzYgMCAxMi41IDBaIiBmaWxsPSIjZWY0NDQ0Ii8+CjxjaXJjbGUgY3g9IjEyLjUiIGN5PSIxMi41IiByPSI3IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
 });
 
-// Don't modify the global prototype
-// L.Marker.prototype.options.icon = DefaultIcon;
+// Set default icon for all markers
+L.Marker.prototype.options.icon = DefaultIcon;
 
 interface StoreMapProps {
   stores: StoreInterface[];
