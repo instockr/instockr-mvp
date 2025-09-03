@@ -290,7 +290,7 @@ export default function SearchResults() {
 
       toast({
         title: "Search Complete",
-        description: `Found ${finalResult.totalResults} stores`,
+        description: `Search completed successfully`,
       });
 
     } catch (error) {
