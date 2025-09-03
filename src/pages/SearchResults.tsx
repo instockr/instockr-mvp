@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, MapPin, Loader2, Globe, ExternalLink, Store, Phone, Clock, CheckCircle, XCircle, Tag, ArrowLeft } from "lucide-react";
+import { Search, MapPin, Loader2, Globe, ExternalLink, Phone, Clock, CheckCircle, XCircle, Tag, ArrowLeft, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -476,7 +476,7 @@ export default function SearchResults() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <Store className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium mb-2">No stores found</h3>
                   <p className="text-muted-foreground">
                     Try searching for a different product or location.
