@@ -70,9 +70,20 @@ export default function SearchResults() {
 
   // Calculate distance between two points using Haversine formula
   const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    console.log('calculateDistance called with:', { lat1, lng1, lat2, lng2 });
+    
+    // Validate coordinates
+    if (!lat1 || !lng1 || !lat2 || !lng2) {
+      console.error('Invalid coordinates provided to calculateDistance:', { lat1, lng1, lat2, lng2 });
+      return 999; // Return large distance for invalid coordinates
+    }
+    
     const R = 6371; // Earth's radius in kilometers
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    
+    console.log('Delta calculations:', { dLat, dLng });
+    
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
@@ -80,7 +91,11 @@ export default function SearchResults() {
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    const distance = R * c;
+    
+    console.log('Haversine calculation steps:', { a, c, distance });
+    
+    return Math.round(distance * 100) / 100; // Round to 2 decimal places
   };
 
   const performSearch = async (productName: string, location: string) => {
@@ -172,15 +187,31 @@ export default function SearchResults() {
 
       // Calculate distances and update results
       const stores = osmResponse.data?.stores || [];
-      const storesWithDistance = stores.map(store => ({
-        ...store,
-        distance: calculateDistance(
+      console.log('User location coordinates:', locationCoords);
+      console.log('Number of stores to calculate distance for:', stores.length);
+      
+      const storesWithDistance = stores.map((store, index) => {
+        console.log(`Store ${index + 1} (${store.name}):`, {
+          storeLat: store.latitude,
+          storeLng: store.longitude,
+          userLat: locationCoords!.lat,
+          userLng: locationCoords!.lng
+        });
+        
+        const calculatedDistance = calculateDistance(
           locationCoords!.lat,
           locationCoords!.lng,
           store.latitude,
           store.longitude
-        )
-      })).sort((a, b) => a.distance - b.distance);
+        );
+        
+        console.log(`Calculated distance for ${store.name}:`, calculatedDistance, 'km');
+        
+        return {
+          ...store,
+          distance: calculatedDistance
+        };
+      }).sort((a, b) => a.distance - b.distance);
 
       const finalResult = {
         stores: storesWithDistance,
