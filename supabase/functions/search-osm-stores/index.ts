@@ -133,7 +133,7 @@ serve(async (req) => {
     const { userLat, userLng, radius, categories } = await req.json();
 
     console.log('Received request with coordinates:', { userLat, userLng, radius });
-    console.log('Full request body:', await req.clone().json());
+    console.log('Categories:', categories);
 
     if (userLat == null || userLng == null || !categories || categories.length === 0 || radius == null) {
       return new Response(
