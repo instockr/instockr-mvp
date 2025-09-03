@@ -35,7 +35,7 @@ function buildOverpassQuery(categories: string[], userLat: number, userLng: numb
     `;
   });
 
-  return `[out:json][timeout:15]; (${blocks.join('\n')}); out center tags;`;
+  return `[out:json]; (${blocks.join('\n')}); out center tags;`;
 }
 
 async function reverseGeocode(
@@ -158,7 +158,7 @@ serve(async (req) => {
         'User-Agent': 'InStockr-App/1.0 (store-locator)'
       },
       body: overpassQuery,
-      signal: AbortSignal.timeout(20000) // Reduced to 20s timeout
+      signal: AbortSignal.timeout(8000) // Optimized to 8s timeout
     });
 
     if (!response.ok) {
@@ -174,7 +174,7 @@ serve(async (req) => {
             'User-Agent': 'InStockr-App/1.0 (store-locator)'
           },
           body: overpassQuery,
-          signal: AbortSignal.timeout(15000) // Even shorter timeout for backup
+          signal: AbortSignal.timeout(6000) // Optimized to 6s for backup
         });
         
         if (altResponse.ok) {
