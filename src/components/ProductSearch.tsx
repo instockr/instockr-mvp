@@ -415,10 +415,28 @@ export function ProductSearch() {
                   onChange={(e) => {
                     setLocation(e.target.value);
                     setIsLocationAutoDetected(false); // Reset flag when user types
+                    // Show suggestions if user is typing and has enough characters
+                    if (e.target.value.length >= 3) {
+                      setShowSuggestions(true);
+                    } else {
+                      setShowSuggestions(false);
+                    }
                   }}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  onFocus={() => !isLocationAutoDetected && location.length > 2 && setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      setShowSuggestions(false);
+                      handleSearch();
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!isLocationAutoDetected && location.length >= 3) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Use a longer timeout to allow clicking on suggestions
+                    setTimeout(() => setShowSuggestions(false), 300);
+                  }}
                   className="pl-4 pr-12 py-3 text-lg border-2 border-muted-foreground/20 bg-background/90 backdrop-blur-sm
                             focus:border-green-500/50 focus:ring-2 focus:ring-green-500/10 focus:bg-background 
                             transition-all duration-300 group-hover:shadow-lg group-hover:border-green-500/30 transform"
