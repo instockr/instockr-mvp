@@ -170,7 +170,7 @@ serve(async (req) => {
       const lon = element.lon || element.center?.lon;
       if (!lat || !lon || !element.tags?.name) continue;
 
-      // Haversine distance
+      // Haversine distance calculation
       const lat1 = userLat * Math.PI / 180;
       const lat2 = lat * Math.PI / 180;
       const deltaLat = (lat - userLat) * Math.PI / 180;
@@ -179,8 +179,11 @@ serve(async (req) => {
         Math.cos(lat1) * Math.cos(lat2) *
         Math.sin(deltaLng / 2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = 6371 * c; // km
-      if (distance > radius) continue;
+      const distance = 6371 * c; // Distance in kilometers
+      
+      // Convert radius to km for proper comparison
+      const radiusKm = radius / 1000;
+      if (distance > radiusKm) continue;
 
       // Address
       let address = 'Address not available';
