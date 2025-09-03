@@ -134,6 +134,7 @@ serve(async (req) => {
 
     console.log('Received request with coordinates:', { userLat, userLng, radius });
     console.log('Categories:', categories);
+    console.log('⏱️ Backend search started at:', new Date().toISOString());
 
     if (userLat == null || userLng == null || !categories || categories.length === 0 || radius == null) {
       return new Response(
@@ -145,8 +146,10 @@ serve(async (req) => {
     const storeCategories = Array.isArray(categories) ? categories : [categories];
 
     // Build a more efficient Overpass query
+    const queryStart = Date.now();
     const overpassQuery = buildOverpassQuery(storeCategories, userLat, userLng, radius);
     console.log('Overpass query:', overpassQuery);
+    console.log('🌐 Starting Overpass API call at:', new Date().toISOString());
 
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
@@ -194,6 +197,10 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    const queryEnd = Date.now();
+    console.log('✅ Overpass API completed in:', (queryEnd - queryStart), 'ms');
+    console.log('🔄 Starting data processing at:', new Date().toISOString());
+    
     return processOverpassData(data, userLat, userLng, radius);
 
   } catch (error) {

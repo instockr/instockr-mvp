@@ -116,6 +116,9 @@ export default function SearchResults() {
   };
 
   const performSearch = async (productName: string, location: string) => {
+    const startTime = performance.now();
+    console.log('🚀 Search started at:', new Date().toISOString());
+    
     setIsLoading(true);
     
     // Initialize empty results
@@ -126,11 +129,20 @@ export default function SearchResults() {
     };
     setResults(initialResult);
 
-    // Validate location before proceeding
+    // Step 1: Validate location before proceeding
     let locationCoords = null;
+    let geocodeStart: number;
+    let geocodeEnd: number;
+    
     try {
+      geocodeStart = performance.now();
+      console.log('📍 Starting geocoding at:', new Date().toISOString());
+      
       console.log('About to geocode location for search:', location);
       locationCoords = await geocodeLocation(location);
+      
+      geocodeEnd = performance.now();
+      console.log('✅ Geocoding completed in:', (geocodeEnd - geocodeStart).toFixed(2), 'ms');
       console.log('Search will use these exact coordinates:', locationCoords);
     } catch (geocodeError) {
       console.error('Location validation failed:', geocodeError);
@@ -144,8 +156,16 @@ export default function SearchResults() {
     }
 
     try {
-      // Step 1: Generate LLM-powered search strategies
+      // Step 2: Generate LLM-powered search strategies
+      let strategiesStart: number;
+      let strategiesEnd: number;
+      let osmStart: number;
+      let osmEnd: number;
+      
+      strategiesStart = performance.now();
+      console.log('🧠 Starting strategy generation at:', new Date().toISOString());
       console.log('Calling generate-search-strategies...');
+      
       const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
         body: {
           productName: productName.trim(),
@@ -153,6 +173,8 @@ export default function SearchResults() {
         }
       });
 
+      strategiesEnd = performance.now();
+      console.log('✅ Strategy generation completed in:', (strategiesEnd - strategiesStart).toFixed(2), 'ms');
       console.log('Strategy response:', strategiesResponse);
 
       if (strategiesResponse.error) {
@@ -179,7 +201,9 @@ export default function SearchResults() {
         return;
       }
 
-      // Step 2: Search for stores
+      // Step 3: Search for stores
+      osmStart = performance.now();
+      console.log('🗺️ Starting OSM store search at:', new Date().toISOString());
       console.log('Calling search-osm-stores...');
       console.log('Sending coordinates to backend:', {
         userLat: locationCoords?.lat,
@@ -196,6 +220,8 @@ export default function SearchResults() {
         }
       });
 
+      osmEnd = performance.now();
+      console.log('✅ OSM search completed in:', (osmEnd - osmStart).toFixed(2), 'ms');
       console.log('OSM response:', osmResponse);
 
       if (osmResponse.error) {
@@ -209,7 +235,10 @@ export default function SearchResults() {
         return;
       }
 
-      // Calculate distances and update results
+      // Step 4: Calculate distances and update results
+      const distanceStart = performance.now();
+      console.log('🧮 Starting distance calculation at:', new Date().toISOString());
+      
       const stores = osmResponse.data?.stores || [];
       console.log('User location coordinates:', locationCoords);
       console.log('Number of stores to calculate distance for:', stores.length);
@@ -237,11 +266,22 @@ export default function SearchResults() {
         };
       }).sort((a, b) => a.distance - b.distance);
 
+      const distanceEnd = performance.now();
+      console.log('✅ Distance calculation completed in:', (distanceEnd - distanceStart).toFixed(2), 'ms');
+
       const finalResult = {
         stores: storesWithDistance,
         searchedProduct: productName,
         totalResults: osmResponse.data?.totalResults || 0
       };
+      
+      const totalEnd = performance.now();
+      console.log('🏁 Total search completed in:', (totalEnd - startTime).toFixed(2), 'ms');
+      console.log('📊 Performance breakdown:');
+      console.log('- Geocoding:', (geocodeEnd - geocodeStart).toFixed(2), 'ms');
+      console.log('- Strategy generation:', (strategiesEnd - strategiesStart).toFixed(2), 'ms'); 
+      console.log('- OSM search:', (osmEnd - osmStart).toFixed(2), 'ms');
+      console.log('- Distance calculation:', (distanceEnd - distanceStart).toFixed(2), 'ms');
       
       setResults(finalResult);
       sessionStorage.setItem('searchResults', JSON.stringify(finalResult));
