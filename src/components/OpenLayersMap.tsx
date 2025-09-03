@@ -289,6 +289,7 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
       if (!store) return;
       
       const isHighlighted = store.id === highlightedStoreId;
+      const uniqueId = store.id.replace(/[^a-zA-Z0-9]/g, ''); // Make sure ID is valid for SVG
       
       feature.setStyle(
         new Style({
@@ -297,11 +298,11 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
             src: 'data:image/svg+xml;base64=' + btoa(`
               <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                  <filter id="shadow${isHighlighted ? 'H' : ''}" x="-50%" y="-50%" width="200%" height="200%">
+                  <filter id="shadow${uniqueId}" x="-50%" y="-50%" width="200%" height="200%">
                     <feDropShadow dx="0" dy="${isHighlighted ? '4' : '2'}" stdDeviation="${isHighlighted ? '6' : '3'}" flood-color="#000000" flood-opacity="${isHighlighted ? '0.4' : '0.25'}"/>
                   </filter>
                 </defs>
-                <path fill="${isHighlighted ? '#EF4444' : '#3B82F6'}" stroke="${isHighlighted ? '#DC2626' : '#1E40AF'}" stroke-width="2" filter="url(#shadow${isHighlighted ? 'H' : ''})" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+                <path fill="${isHighlighted ? '#EF4444' : '#3B82F6'}" stroke="${isHighlighted ? '#DC2626' : '#1E40AF'}" stroke-width="2" filter="url(#shadow${uniqueId})" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
                 <circle fill="white" cx="12" cy="12" r="6"/>
                 <circle fill="${isHighlighted ? '#DC2626' : '#1E40AF'}" cx="12" cy="12" r="3">
                   ${isHighlighted ? '<animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite"/>' : ''}
