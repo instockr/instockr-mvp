@@ -215,15 +215,15 @@ async function processOverpassData(data: any, userLat: number, userLng: number, 
     if (!lat || !lon || !element.tags?.name) continue;
 
     // Haversine distance calculation (distance in kilometers)
-    const lat1 = userLat * Math.PI / 180;
-    const lat2 = lat * Math.PI / 180;
-    const deltaLat = (lat - userLat) * Math.PI / 180;
-    const deltaLng = (lon - userLng) * Math.PI / 180;
-    const a = Math.sin(deltaLat / 2) ** 2 +
-      Math.cos(lat1) * Math.cos(lat2) *
-      Math.sin(deltaLng / 2) ** 2;
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat - userLat) * Math.PI / 180;
+    const dLon = (lon - userLng) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(userLat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = 6371 * c; // Distance in kilometers
+    const distance = R * c; // Distance in kilometers
     
     // Convert radius to km for proper comparison
     const radiusKm = radius / 1000;
