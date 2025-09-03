@@ -68,6 +68,21 @@ export default function SearchResults() {
     throw new Error(`Location "${locationStr}" not found. Please try again.`);
   };
 
+  // Calculate distance between two points using Haversine formula
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   const performSearch = async (productName: string, location: string) => {
     setIsLoading(true);
     
@@ -155,9 +170,20 @@ export default function SearchResults() {
         return;
       }
 
-      // Update results with actual data
+      // Calculate distances and update results
+      const stores = osmResponse.data?.stores || [];
+      const storesWithDistance = stores.map(store => ({
+        ...store,
+        distance: calculateDistance(
+          locationCoords!.lat,
+          locationCoords!.lng,
+          store.latitude,
+          store.longitude
+        )
+      })).sort((a, b) => a.distance - b.distance);
+
       const finalResult = {
-        stores: osmResponse.data?.stores || [],
+        stores: storesWithDistance,
         searchedProduct: productName,
         totalResults: osmResponse.data?.totalResults || 0
       };

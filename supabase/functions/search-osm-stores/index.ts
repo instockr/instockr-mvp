@@ -214,21 +214,6 @@ async function processOverpassData(data: any, userLat: number, userLng: number, 
     const lon = element.lon || element.center?.lon;
     if (!lat || !lon || !element.tags?.name) continue;
 
-    // Haversine distance calculation (distance in kilometers)
-    const R = 6371; // Earth's radius in kilometers
-    const dLat = (lat - userLat) * Math.PI / 180;
-    const dLon = (lon - userLng) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(userLat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in kilometers
-    
-    // Convert radius to km for proper comparison
-    const radiusKm = radius / 1000;
-    if (distance > radiusKm) continue;
-
     // Address
     let address = 'Address not available';
     const addrTags = element.tags;
@@ -255,7 +240,7 @@ async function processOverpassData(data: any, userLat: number, userLng: number, 
       name: element.tags.name,
       store_type: storeType,
       address,
-      distance: Math.round(distance * 100) / 100,
+      distance: 0, // Will be calculated on frontend
       latitude: lat,
       longitude: lon,
       phone: element.tags.phone || element.tags['contact:phone'] || null,
@@ -267,7 +252,6 @@ async function processOverpassData(data: any, userLat: number, userLng: number, 
   }
 
   const uniqueResults = deduplicateStores(results, 50);
-  uniqueResults.sort((a, b) => a.distance - b.distance);
 
   console.log(`Found ${uniqueResults.length} stores within ${radius/1000}km`);
 
