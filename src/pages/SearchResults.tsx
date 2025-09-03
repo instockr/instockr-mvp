@@ -537,7 +537,7 @@ export default function SearchResults() {
           {/* Store list */}
           <div className="w-1/2 overflow-y-auto">
             <Card className="h-full">
-              <CardContent className="p-0 h-full">
+              <CardContent className="p-4 h-full">
                 {renderStoreList()}
               </CardContent>
             </Card>
@@ -546,7 +546,7 @@ export default function SearchResults() {
           {/* Map */}
           <div className="w-1/2">
             <Card className="h-full">
-              <CardContent className="p-0 h-full">
+              <CardContent className="p-4 h-full">
                 <OpenLayersMap
                   stores={results?.stores || []}
                   highlightedStoreId={highlightedStoreId}
