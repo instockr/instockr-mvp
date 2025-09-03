@@ -470,9 +470,9 @@ export default function SearchResults() {
               <img
                 src={instockrLogo}
                 alt="InStockr Logo"
-                className="w-8 h-8"
+                className="w-12 h-12"
               />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
                 InStockr
               </h1>
             </button>
