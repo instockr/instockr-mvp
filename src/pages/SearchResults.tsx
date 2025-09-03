@@ -477,116 +477,126 @@ export default function SearchResults() {
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto p-4">
-        {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-3 text-lg">Searching stores...</span>
-          </div>
-        )}
-
-        {results && !isLoading && (
-          <div className="flex gap-6 h-[calc(100vh-200px)]">
-            {/* Store list on the left */}
-            <div className="flex-1 overflow-y-auto px-1">
-              <div className="mb-4">
-                <h2 className="text-xl font-semibold">
-                  {results.totalResults} stores found for "{results.searchedProduct}"
-                </h2>
+        <div className="flex gap-6 h-[calc(100vh-200px)]">
+          {/* Store list on the left */}
+          <div className="flex-1 overflow-y-auto px-1">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="relative">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  <div className="absolute inset-0 animate-ping">
+                    <div className="h-12 w-12 rounded-full border-2 border-primary opacity-75"></div>
+                  </div>
+                </div>
+                <div className="mt-6 text-center animate-fade-in">
+                  <h3 className="text-lg font-semibold text-foreground mb-2">Searching stores...</h3>
+                  <p className="text-sm text-muted-foreground">Finding the best places to buy {productName}</p>
+                </div>
+                <div className="mt-4 flex gap-1">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                </div>
               </div>
+            ) : results ? (
+              <>
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold">
+                    {results.totalResults} stores found for "{results.searchedProduct}"
+                  </h2>
+                </div>
 
-              {results.stores.length > 0 ? (
-                <div className="space-y-4 pb-1">
-                  {results.stores.map((store) => {
-                    const categoryImage = getCategoryImage(store.store_type);
-                    
-                    return (
-                      <Card
-                        key={store.id}
-                        className={`transition-all duration-200 hover:shadow-lg ${
-                          highlightedStoreId === store.id ? 'ring-2 ring-primary shadow-lg' : ''
-                        }`}
-                        onMouseEnter={() => setHighlightedStoreId(store.id)}
-                        onMouseLeave={() => setHighlightedStoreId(null)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex gap-4">
-                            {categoryImage && (
-                              <div className="flex-shrink-0">
-                                <img
-                                  src={categoryImage}
-                                  alt={store.store_type}
-                                  className="w-16 h-16 object-cover rounded-lg"
-                                />
-                              </div>
-                            )}
-                            
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
-                                <h3 className="font-semibold text-lg truncate pr-2">{store.name}</h3>
-                                <span className="text-blue-600 font-semibold text-sm flex-shrink-0">
-                                  {store.distance.toFixed(1)} km
-                                </span>
-                              </div>
+                {results.stores.length > 0 ? (
+                  <div className="space-y-4 pb-1">
+                    {results.stores.map((store) => {
+                      const categoryImage = getCategoryImage(store.store_type);
+                      
+                      return (
+                        <Card
+                          key={store.id}
+                          className={`transition-all duration-200 hover:shadow-lg animate-fade-in ${
+                            highlightedStoreId === store.id ? 'ring-2 ring-primary shadow-lg' : ''
+                          }`}
+                          onMouseEnter={() => setHighlightedStoreId(store.id)}
+                          onMouseLeave={() => setHighlightedStoreId(null)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex gap-4">
+                              {categoryImage && (
+                                <div className="flex-shrink-0">
+                                  <img
+                                    src={categoryImage}
+                                    alt={store.store_type}
+                                    className="w-16 h-16 object-cover rounded-lg"
+                                  />
+                                </div>
+                              )}
                               
-                              <div className="space-y-2 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="h-4 w-4 flex-shrink-0" />
-                                  <span className="truncate">{store.address}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between mb-2">
+                                  <h3 className="font-semibold text-lg truncate pr-2">{store.name}</h3>
+                                  <span className="text-blue-600 font-semibold text-sm flex-shrink-0">
+                                    {store.distance.toFixed(1)} km
+                                  </span>
                                 </div>
                                 
-                                {store.phone && (
+                                <div className="space-y-2 text-sm text-muted-foreground">
                                   <div className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4 flex-shrink-0" />
-                                    <span>{store.phone}</span>
+                                    <MapPin className="h-4 w-4 flex-shrink-0" />
+                                    <span className="truncate">{store.address}</span>
                                   </div>
-                                )}
-                                
-                                {store.openingHours.length > 0 && (
-                                  <div className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4 flex-shrink-0" />
-                                    <span className="truncate">{store.openingHours[0]}</span>
-                                  </div>
-                                )}
+                                  
+                                  {store.phone && (
+                                    <div className="flex items-center gap-2">
+                                      <Phone className="h-4 w-4 flex-shrink-0" />
+                                      <span>{store.phone}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {store.openingHours.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="h-4 w-4 flex-shrink-0" />
+                                      <span className="truncate">{store.openingHours[0]}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No stores found</h3>
-                  <p className="text-muted-foreground">
-                    Try searching for a different product or location.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Map on the right */}
-            <div className="flex-1">
-              <OpenLayersMap 
-                stores={results.stores}
-                highlightedStoreId={highlightedStoreId}
-                onStoreHover={setHighlightedStoreId}
-              />
-            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 animate-fade-in">
+                    <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No stores found</h3>
+                    <p className="text-muted-foreground">
+                      Try searching for a different product or location.
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12 animate-fade-in">
+                <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Ready to search</h3>
+                <p className="text-muted-foreground">
+                  Enter a product and location to find nearby stores.
+                </p>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Initial state when no results and not loading */}
-        {!results && !isLoading && (
-          <div className="text-center py-12">
-            <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Start your search</h3>
-            <p className="text-muted-foreground">
-              Enter a product name and location to find nearby stores.
-            </p>
+          {/* Map on the right - Always visible */}
+          <div className="flex-1">
+            <OpenLayersMap 
+              stores={results?.stores || []}
+              highlightedStoreId={highlightedStoreId}
+              onStoreHover={setHighlightedStoreId}
+            />
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
