@@ -37,7 +37,7 @@ export default function SearchResults() {
   const [isLocationAutoDetected, setIsLocationAutoDetected] = useState(false);
 
   const geocodeLocation = async (locationStr: string) => {
-    console.log('geocodeLocation called with:', locationStr);
+    // console.log('geocodeLocation called with:', locationStr);
 
     // Case 1: already coordinates (lat, lng)
     const coordMatch = locationStr.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
@@ -46,7 +46,7 @@ export default function SearchResults() {
         lat: parseFloat(coordMatch[1]),
         lng: parseFloat(coordMatch[2]),
       };
-      console.log('Found coordinates in string format:', coords);
+      // console.log('Found coordinates in string format:', coords);
       return coords;
     }
 
@@ -56,7 +56,7 @@ export default function SearchResults() {
         locationStr
       )}&limit=1&addressdetails=1`;
 
-      console.log('Geocoding URL:', geocodeUrl);
+      // console.log('Geocoding URL:', geocodeUrl);
 
       const response = await fetch(geocodeUrl, {
         headers: {
@@ -65,15 +65,15 @@ export default function SearchResults() {
       });
       const data = await response.json();
 
-      console.log('Nominatim geocoding response:', data);
+      // console.log('Nominatim geocoding response:', data);
 
       if (data && data.length > 0) {
         const result = {
           lat: parseFloat(data[0].lat),
           lng: parseFloat(data[0].lon),
         };
-        console.log('Geocoded coordinates:', result);
-        console.log('Full address from Nominatim:', data[0].display_name);
+        // console.log('Geocoded coordinates:', result);
+        // console.log('Full address from Nominatim:', data[0].display_name);
         return result;
       } else {
         console.error('No geocoding results found for:', locationStr);
@@ -87,7 +87,7 @@ export default function SearchResults() {
 
   // Calculate distance between two points using Haversine formula
   const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-    console.log('calculateDistance called with:', { lat1, lng1, lat2, lng2 });
+    // console.log('calculateDistance called with:', { lat1, lng1, lat2, lng2 });
 
     // Validate coordinates
     if (!lat1 || !lng1 || !lat2 || !lng2) {
@@ -99,7 +99,7 @@ export default function SearchResults() {
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLng = ((lng2 - lng1) * Math.PI) / 180;
 
-    console.log('Delta calculations:', { dLat, dLng });
+    // console.log('Delta calculations:', { dLat, dLng });
 
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -110,7 +110,7 @@ export default function SearchResults() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
 
-    console.log('Haversine calculation steps:', { a, c, distance });
+    // console.log('Haversine calculation steps:', { a, c, distance });
 
     return Math.round(distance * 100) / 100; // Round to 2 decimal places
   };
@@ -189,7 +189,7 @@ export default function SearchResults() {
       }
 
       const storeCategories = strategiesResponse.data?.searchTerms || [];
-      console.log('Generated categories:', storeCategories);
+      // console.log('Generated categories:', storeCategories);
 
       if (storeCategories.length === 0) {
         toast({
@@ -204,12 +204,12 @@ export default function SearchResults() {
       // Step 3: Search for stores
       osmStart = performance.now();
       //console.log('🗺️ Starting OSM store search at:', new Date().toISOString());
-      console.log('Calling search-osm-stores...');
-      console.log('Sending coordinates to overpass:', {
-        userLat: locationCoords?.lat,
-        userLng: locationCoords?.lng,
-        radius: 5000
-      });
+      // console.log('Calling search-osm-stores...');
+      //console.log('Sending coordinates to overpass:', {
+      //  userLat: locationCoords?.lat,
+      //  userLng: locationCoords?.lng,
+      //  radius: 5000
+      //});
 
       const osmResponse = await supabase.functions.invoke('search-osm-stores', {
         body: {
@@ -240,16 +240,16 @@ export default function SearchResults() {
       //console.log('🧮 Starting distance calculation at:', new Date().toISOString());
 
       const stores = osmResponse.data?.stores || [];
-      console.log('User location coordinates:', locationCoords);
-      console.log('Number of stores to calculate distance for:', stores.length);
+      // console.log('User location coordinates:', locationCoords);
+      // console.log('Number of stores to calculate distance for:', stores.length);
 
       const storesWithDistance = stores.map((store, index) => {
-        console.log(`Store ${index + 1} (${store.name}):`, {
+        /*console.log(`Store ${index + 1} (${store.name}):`, {
           storeLat: store.latitude,
           storeLng: store.longitude,
           userLat: locationCoords!.lat,
           userLng: locationCoords!.lng
-        });
+        });*/
 
         const calculatedDistance = calculateDistance(
           locationCoords!.lat,
@@ -258,7 +258,7 @@ export default function SearchResults() {
           store.longitude
         );
 
-        console.log(`Calculated distance for ${store.name}:`, calculatedDistance, 'km');
+        // console.log(`Calculated distance for ${store.name}:`, calculatedDistance, 'km');
 
         return {
           ...store,
