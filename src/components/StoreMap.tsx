@@ -9,8 +9,8 @@ import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 let DefaultIcon = L.divIcon({
-  html: `<div class="w-6 h-6 bg-primary rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-    <div class="w-3 h-3 bg-white rounded-full"></div>
+  html: `<div style="width: 24px; height: 24px; background-color: hsl(var(--primary)); border-radius: 50%; border: 2px solid white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center;">
+    <div style="width: 12px; height: 12px; background-color: white; border-radius: 50%;"></div>
   </div>`,
   className: 'custom-div-icon',
   iconSize: [24, 24],
@@ -18,15 +18,16 @@ let DefaultIcon = L.divIcon({
 });
 
 let HighlightedIcon = L.divIcon({
-  html: `<div class="w-8 h-8 bg-red-500 rounded-full border-2 border-white shadow-xl flex items-center justify-center animate-pulse">
-    <div class="w-4 h-4 bg-white rounded-full"></div>
+  html: `<div style="width: 32px; height: 32px; background-color: #ef4444; border-radius: 50%; border: 2px solid white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;">
+    <div style="width: 16px; height: 16px; background-color: white; border-radius: 50%;"></div>
   </div>`,
   className: 'custom-div-icon',
   iconSize: [32, 32],
   iconAnchor: [16, 16],
 });
 
-L.Marker.prototype.options.icon = DefaultIcon;
+// Don't modify the global prototype
+// L.Marker.prototype.options.icon = DefaultIcon;
 
 interface StoreMapProps {
   stores: StoreInterface[];
