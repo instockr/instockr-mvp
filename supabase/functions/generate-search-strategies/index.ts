@@ -79,8 +79,12 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
 
     console.log('Generating similarities for:', normalizedProductName);
 
-    // Use sentence similarity to compare product with all categories at once
-    const similarities = await hf.sentenceSimilarity({
+    // Use sentence similarity with timeout
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('HF API timeout')), 10000) // 10 second timeout
+    );
+
+    const similarityPromise = hf.sentenceSimilarity({
       model: 'sentence-transformers/all-MiniLM-L6-v2',
       inputs: {
         source_sentence: normalizedProductName,
@@ -89,6 +93,8 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
         )
       }
     });
+
+    const similarities = await Promise.race([similarityPromise, timeoutPromise]);
 
     console.log('Similarities received:', similarities);
 
@@ -126,8 +132,20 @@ async function generateAISearchTerms(productName: string, location?: string): Pr
 
   } catch (error) {
     console.error('Error in AI categorization:', error);
-    // If AI fails, return empty array
-    return [];
+    // If AI fails or times out, return fallback categories based on common products
+    console.log('Using fallback categories for:', productName);
+    
+    const productLower = productName.toLowerCase();
+    if (productLower.includes('phone') || productLower.includes('iphone') || productLower.includes('samsung')) {
+      return ['shop=mobile_phone', 'shop=electronics'];
+    } else if (productLower.includes('laptop') || productLower.includes('computer') || productLower.includes('pc')) {
+      return ['shop=computer', 'shop=electronics'];  
+    } else if (productLower.includes('tv') || productLower.includes('tablet')) {
+      return ['shop=electronics'];
+    } else {
+      // Generic fallback
+      return ['shop=electronics', 'shop=mobile_phone', 'shop=computer'];
+    }
   }
 }
 
