@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { StoreInterface } from "@/components/ProductSearch";
+import { OpenLayersMap } from '../components/OpenLayersMap';
+import { Store as StoreType } from '../../types/store';
 import instockrLogo from "@/assets/instockr-logo.png";
 
 import mobilePhoneImage from "@/assets/categories/mobile-phone.png";
@@ -15,7 +16,7 @@ import electronicsImage from "@/assets/categories/electronics.jpg";
 import computerImage from "@/assets/categories/computer.jpg";
 
 interface SearchResult {
-  stores: StoreInterface[];
+  stores: StoreType[];
   searchedProduct: string;
   totalResults: number;
 }
