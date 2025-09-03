@@ -513,9 +513,9 @@ export default function SearchResults() {
 
             <Button onClick={handleSearch} disabled={isLoading} className="h-10">
               {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-orange-600" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <Search className="h-5 w-5 text-orange-600" />
+                <Search className="h-5 w-5" />
               )}
             </Button>
           </div>
