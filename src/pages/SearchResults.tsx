@@ -36,6 +36,7 @@ export default function SearchResults() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isLocationAutoDetected, setIsLocationAutoDetected] = useState(false);
+  const [userLocationCoords, setUserLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const geocodeLocation = async (locationStr: string) => {
     console.log('geocodeLocation called with:', locationStr);
@@ -346,6 +347,9 @@ export default function SearchResults() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
+        
+        // Store the coordinates
+        setUserLocationCoords({ lat: latitude, lng: longitude });
 
         try {
           const response = await fetch(
@@ -394,6 +398,8 @@ export default function SearchResults() {
         } catch (error) {
           setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
           setIsLocationAutoDetected(true);
+          // Keep the coordinates even if reverse geocoding fails
+          setUserLocationCoords({ lat: latitude, lng: longitude });
           toast({
             title: "Location found",
             description: "Using your current coordinates for search",
@@ -551,6 +557,7 @@ export default function SearchResults() {
                   stores={results?.stores || []}
                   highlightedStoreId={highlightedStoreId}
                   onStoreHover={setHighlightedStoreId}
+                  userLocation={userLocationCoords}
                 />
               </CardContent>
             </Card>
@@ -592,11 +599,12 @@ export default function SearchResults() {
               <Card>
                 <CardContent className="p-4">
                   <div className="h-[75vh] w-full">
-                    <OpenLayersMap
-                      stores={results?.stores || []}
-                      highlightedStoreId={highlightedStoreId}
-                      onStoreHover={setHighlightedStoreId}
-                    />
+                     <OpenLayersMap
+                       stores={results?.stores || []}
+                       highlightedStoreId={highlightedStoreId}
+                       onStoreHover={setHighlightedStoreId}
+                       userLocation={userLocationCoords}
+                     />
                   </div>
                 </CardContent>
               </Card>

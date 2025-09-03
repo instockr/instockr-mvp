@@ -30,36 +30,68 @@ interface OpenLayersMapProps {
   stores: Store[];
   highlightedStoreId?: string;
   onStoreHover?: (storeId: string | null) => void;
+  userLocation?: { lat: number; lng: number } | null;
 }
 
-export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: OpenLayersMapProps) {
+export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover, userLocation }: OpenLayersMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  // Get user location
+  // Update user location when prop changes
   useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          userLocationRef.current = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          
-          // Add user location marker to existing map if map is already created
-          if (mapInstanceRef.current) {
-            addUserLocationMarker();
+    if (userLocation) {
+      userLocationRef.current = userLocation;
+      
+      // Add or update user location marker if map exists
+      if (mapInstanceRef.current) {
+        const vectorLayer = mapInstanceRef.current.getLayers().getArray()[1] as VectorLayer<VectorSource>;
+        const source = vectorLayer.getSource();
+        
+        // Remove existing user location marker
+        source?.forEachFeature((feature) => {
+          if (feature.get('isUserLocation')) {
+            source.removeFeature(feature);
           }
-        },
-        (error) => {
-          console.log('Geolocation error:', error);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-      );
+        });
+        
+        // Add new user location marker
+        const userMarker = new Feature({
+          geometry: new Point(fromLonLat([userLocation.lng, userLocation.lat])),
+          isUserLocation: true,
+        });
+
+        userMarker.setStyle(
+          new Style({
+            image: new Icon({
+              anchor: [0.5, 1],
+              src: 'data:image/svg+xml;base64,' + btoa(`
+                <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="#10B981" stroke="#059669" stroke-width="2" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+                  <circle fill="white" cx="12" cy="12" r="6"/>
+                  <circle fill="#059669" cx="12" cy="12" r="3">
+                    <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite"/>
+                  </circle>
+                </svg>
+              `),
+              scale: 1.1,
+            }),
+          })
+        );
+
+        source?.addFeature(userMarker);
+        
+        // Recenter map on user location
+        const view = mapInstanceRef.current.getView();
+        view.animate({
+          center: fromLonLat([userLocation.lng, userLocation.lat]),
+          zoom: 14,
+          duration: 1000
+        });
+      }
     }
-  }, []);
+  }, [userLocation]);
 
   const addUserLocationMarker = () => {
     if (!mapInstanceRef.current || !userLocationRef.current) return;
@@ -115,9 +147,13 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
     // Default center - Frankfurt coordinates
     const defaultCenter = fromLonLat([8.6821, 50.1109]);
     
-    // Calculate center - prioritize user location, then stores
+    // Calculate center - prioritize user location from props, then stores
     const getMapCenter = () => {
-      // If we have user location, center on that
+      // If we have user location from props, use that
+      if (userLocation) {
+        return fromLonLat([userLocation.lng, userLocation.lat]);
+      }
+      // Fallback to ref location
       if (userLocationRef.current) {
         return fromLonLat([userLocationRef.current.lng, userLocationRef.current.lat]);
       }
@@ -170,10 +206,11 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
       vectorSource.addFeature(marker);
     });
 
-    // Add user location marker if we have it
-    if (userLocationRef.current) {
+    // Add user location marker if we have it (from props or ref)
+    const currentUserLocation = userLocation || userLocationRef.current;
+    if (currentUserLocation) {
       const userMarker = new Feature({
-        geometry: new Point(fromLonLat([userLocationRef.current.lng, userLocationRef.current.lat])),
+        geometry: new Point(fromLonLat([currentUserLocation.lng, currentUserLocation.lat])),
         isUserLocation: true,
       });
 
@@ -214,7 +251,7 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
       overlays: [overlay],
       view: new View({
         center: getMapCenter(),
-        zoom: userLocationRef.current ? 14 : (stores.length > 0 ? 13 : 10),
+        zoom: (userLocation || userLocationRef.current) ? 14 : (stores.length > 0 ? 13 : 10),
       }),
     });
 
