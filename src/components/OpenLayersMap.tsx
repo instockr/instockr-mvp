@@ -260,7 +260,7 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
 
   // Handle highlighted store
   useEffect(() => {
-    if (!mapInstanceRef.current || !highlightedStoreId) return;
+    if (!mapInstanceRef.current) return;
 
     const vectorLayer = mapInstanceRef.current.getLayers().getArray()[1] as VectorLayer<VectorSource>;
     const source = vectorLayer.getSource();
