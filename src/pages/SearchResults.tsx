@@ -177,6 +177,12 @@ export default function SearchResults() {
 
       // Step 2: Search for stores
       console.log('Calling search-osm-stores...');
+      console.log('Sending coordinates to backend:', {
+        userLat: locationCoords?.lat,
+        userLng: locationCoords?.lng,
+        radius: 5000
+      });
+      
       const osmResponse = await supabase.functions.invoke('search-osm-stores', {
         body: {
           userLat: locationCoords?.lat,
