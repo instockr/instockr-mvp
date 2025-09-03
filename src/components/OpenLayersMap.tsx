@@ -47,6 +47,11 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
             lat: position.coords.latitude,
             lng: position.coords.longitude
           };
+          
+          // Add user location marker to existing map if map is already created
+          if (mapInstanceRef.current) {
+            addUserLocationMarker();
+          }
         },
         (error) => {
           console.log('Geolocation error:', error);
@@ -55,6 +60,54 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
       );
     }
   }, []);
+
+  const addUserLocationMarker = () => {
+    if (!mapInstanceRef.current || !userLocationRef.current) return;
+
+    const vectorLayer = mapInstanceRef.current.getLayers().getArray()[1] as VectorLayer<VectorSource>;
+    const source = vectorLayer.getSource();
+
+    // Check if user location marker already exists
+    let userMarkerExists = false;
+    source?.forEachFeature((feature) => {
+      if (feature.get('isUserLocation')) {
+        userMarkerExists = true;
+      }
+    });
+
+    // Only add if it doesn't exist
+    if (!userMarkerExists) {
+      const userMarker = new Feature({
+        geometry: new Point(fromLonLat([userLocationRef.current.lng, userLocationRef.current.lat])),
+        isUserLocation: true,
+      });
+
+      userMarker.setStyle(
+        new Style({
+          image: new Icon({
+            anchor: [0.5, 1],
+            src: 'data:image/svg+xml;base64,' + btoa(`
+              <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#10B981" stroke="#059669" stroke-width="2" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+                <circle fill="white" cx="12" cy="12" r="6"/>
+                <circle fill="#059669" cx="12" cy="12" r="3">
+                  <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite"/>
+                </circle>
+              </svg>
+            `),
+            scale: 1.1,
+          }),
+        })
+      );
+
+      source?.addFeature(userMarker);
+      
+      // Recenter map on user location
+      const view = mapInstanceRef.current.getView();
+      view.setCenter(fromLonLat([userLocationRef.current.lng, userLocationRef.current.lat]));
+      view.setZoom(14);
+    }
+  };
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -167,6 +220,11 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
 
     mapInstanceRef.current = map;
 
+    // Add user location marker if we got location data
+    if (userLocationRef.current) {
+      addUserLocationMarker();
+    }
+
     // Handle click events
     map.on('click', (evt) => {
       const feature = map.forEachFeatureAtPixel(evt.pixel, (feature) => feature);
@@ -257,6 +315,43 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
       }
     };
   }, [stores, onStoreHover]);
+
+  // Careful highlighting effect that doesn't break existing pins
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    const vectorLayer = mapInstanceRef.current.getLayers().getArray()[1] as VectorLayer<VectorSource>;
+    const source = vectorLayer.getSource();
+    
+    source?.forEachFeature((feature) => {
+      const store = feature.get('store') as Store;
+      
+      // Skip non-store features (like user location marker)
+      if (!store) return;
+      
+      const isHighlighted = highlightedStoreId === store.id;
+      
+      // Only change existing store markers, don't recreate them
+      const currentStyle = feature.getStyle() as Style;
+      if (currentStyle && currentStyle.getImage()) {
+        feature.setStyle(
+          new Style({
+            image: new Icon({
+              anchor: [0.5, 1],
+              src: 'data:image/svg+xml;base64,' + btoa(`
+                <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="${isHighlighted ? '#EF4444' : '#3B82F6'}" stroke="${isHighlighted ? '#DC2626' : '#1E40AF'}" stroke-width="2" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+                  <circle fill="white" cx="12" cy="12" r="6"/>
+                  <circle fill="${isHighlighted ? '#DC2626' : '#1E40AF'}" cx="12" cy="12" r="3"/>
+                </svg>
+              `),
+              scale: isHighlighted ? 1.2 : 1,
+            }),
+          })
+        );
+      }
+    });
+  }, [highlightedStoreId]);
 
   return (
     <div className="h-full w-full rounded-xl overflow-hidden shadow-xl border border-border/20 bg-gradient-to-br from-background to-muted/20 relative">
