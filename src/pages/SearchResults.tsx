@@ -712,12 +712,6 @@ export default function SearchResults() {
                         </div>
                       )}
 
-                      <div className="flex items-center gap-2">
-                        <Tag className="h-4 w-4 flex-shrink-0" />
-                        <Badge variant="secondary" className={getStoreTypeColor(store.store_type)}>
-                          {store.store_type.replace('_', ' ')}
-                        </Badge>
-                      </div>
                     </div>
                   </div>
                 </div>
