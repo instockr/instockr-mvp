@@ -175,8 +175,11 @@ serve(async (req) => {
         });
         
         if (altResponse.ok) {
+          console.log('Alternative Overpass server succeeded');
           const altData = await altResponse.json();
           return processOverpassData(altData, userLat, userLng, radius);
+        } else {
+          console.error('Alternative Overpass server also failed:', altResponse.status);
         }
       }
       
@@ -195,9 +198,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in search-osm-stores:', error);
+    console.error('Error details:', error.message, error.stack);
     return new Response(
       JSON.stringify({ 
-        error: 'Store search temporarily unavailable. Please try again.',
+        error: `Search failed: ${error.message}. Details: ${error.stack?.slice(0, 200)}`,
         stores: [],
         totalResults: 0
       }),
