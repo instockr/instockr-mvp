@@ -420,12 +420,11 @@ export default function SearchResults() {
                     return (
                       <Card
                         key={store.id}
-                        className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                        className={`transition-all duration-200 hover:shadow-lg ${
                           highlightedStoreId === store.id ? 'ring-2 ring-primary shadow-lg' : ''
                         }`}
                         onMouseEnter={() => setHighlightedStoreId(store.id)}
                         onMouseLeave={() => setHighlightedStoreId(null)}
-                        onClick={() => handleStoreClick(store.id)}
                       >
                         <CardContent className="p-4">
                           <div className="flex gap-4">
