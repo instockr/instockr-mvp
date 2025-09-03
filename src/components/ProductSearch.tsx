@@ -301,25 +301,8 @@ export function ProductSearch() {
       return;
     }
 
-    setIsLoading(true);
-
-    // Quick location validation
-    try {
-      await geocodeLocation(location);
-    } catch (geocodeError) {
-      console.error('Location validation failed:', geocodeError);
-      toast({
-        title: "Invalid Location",
-        description: "Please enter a valid city or location that can be found on the map.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    // Navigate immediately to search page
+    // Navigate immediately to search page - let SearchResults handle validation and search
     navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
-    setIsLoading(false);
   };
 
   const getStoreTypeColor = (type: string) => {
