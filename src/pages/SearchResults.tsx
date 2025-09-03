@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, MapPin, Loader2, Globe, ExternalLink, Phone, Clock, CheckCircle, XCircle, Tag, ArrowLeft, ShoppingBag } from "lucide-react";
+import { Search, MapPin, Loader2, Globe, ExternalLink, Phone, Clock, CheckCircle, XCircle, Tag, ArrowLeft, ShoppingBag, List, Map, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { OpenLayersMap } from '../components/OpenLayersMap';
@@ -35,6 +36,7 @@ export default function SearchResults() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isLocationAutoDetected, setIsLocationAutoDetected] = useState(false);
+  const [userLocationCoords, setUserLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const geocodeLocation = async (locationStr: string) => {
     // console.log('geocodeLocation called with:', locationStr);
@@ -288,7 +290,7 @@ export default function SearchResults() {
 
       toast({
         title: "Search Complete",
-        description: `Found ${finalResult.totalResults} stores`,
+        description: `Search completed successfully`,
       });
 
     } catch (error) {
@@ -345,6 +347,9 @@ export default function SearchResults() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
+        
+        // Store the coordinates
+        setUserLocationCoords({ lat: latitude, lng: longitude });
 
         try {
           const response = await fetch(
@@ -393,6 +398,8 @@ export default function SearchResults() {
         } catch (error) {
           setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
           setIsLocationAutoDetected(true);
+          // Keep the coordinates even if reverse geocoding fails
+          setUserLocationCoords({ lat: latitude, lng: longitude });
           toast({
             title: "Location found",
             description: "Using your current coordinates for search",
@@ -470,9 +477,9 @@ export default function SearchResults() {
               <img
                 src={instockrLogo}
                 alt="InStockr Logo"
-                className="w-8 h-8"
+                className="w-12 h-12"
               />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
                 InStockr
               </h1>
             </button>
@@ -500,143 +507,214 @@ export default function SearchResults() {
               />
             </div>
 
-            <Button onClick={getCurrentLocation} variant="outline" size="sm">
-              <MapPin className="h-4 w-4" />
+            <Button onClick={getCurrentLocation} variant="outline" className="h-10">
+              <MapPin className="h-5 w-5 text-orange-600" />
             </Button>
 
-            <Button onClick={handleSearch} disabled={isLoading}>
+            <Button onClick={handleSearch} disabled={isLoading} className="h-10">
               {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin !text-white" />
               ) : (
-                <Search className="h-4 w-4" />
+                <Search className="h-5 w-5 !text-white" />
               )}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content with responsive tabs */}
       <div className="max-w-7xl mx-auto p-4">
-        <div className="flex gap-6 h-[calc(100vh-200px)]">
-          {/* Store list on the left */}
-          <div className="flex-1 overflow-y-auto px-1">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="relative">
-                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                  <div className="absolute inset-0 animate-ping">
-                    <div className="h-12 w-12 rounded-full border-2 border-primary opacity-75"></div>
-                  </div>
-                </div>
-                <div className="mt-6 text-center animate-fade-in">
-                  <h3 className="text-lg font-semibold text-foreground mb-2">Searching stores...</h3>
-                  <p className="text-sm text-muted-foreground">Finding the best places to buy {productName}</p>
-                </div>
-                <div className="mt-4 flex gap-1">
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
-              </div>
-            ) : results ? (
-              <>
-                <div className="mb-4">
-                  <h2 className="text-xl font-semibold">
-                    {results.totalResults} stores found for "{results.searchedProduct}"
-                  </h2>
-                </div>
 
-                {results.stores.length > 0 ? (
-                  <div className="space-y-4 pb-1">
-                    {results.stores.map((store) => {
-                      const categoryImage = getCategoryImage(store.store_type);
+        {/* Desktop layout - side by side */}
+        <div className="hidden lg:flex gap-4 h-[calc(100vh-240px)]">
+          {/* Store list */}
+          <div className="w-1/2 overflow-y-auto">
+            <Card className="h-full">
+              <CardContent className="p-4 h-full">
+                {renderStoreList()}
+              </CardContent>
+            </Card>
+          </div>
 
-                      return (
-                        <Card
-                          key={store.id}
-                          className={`transition-all duration-200 hover:shadow-lg animate-fade-in ${highlightedStoreId === store.id ? 'ring-2 ring-primary shadow-lg' : ''
-                            }`}
-                          onMouseEnter={() => setHighlightedStoreId(store.id)}
-                          onMouseLeave={() => setHighlightedStoreId(null)}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex gap-4">
-                              {categoryImage && (
-                                <div className="flex-shrink-0">
-                                  <img
-                                    src={categoryImage}
-                                    alt={store.store_type}
-                                    className="w-16 h-16 object-cover rounded-lg"
-                                  />
-                                </div>
-                              )}
+          {/* Map */}
+          <div className="w-1/2">
+            <Card className="h-full">
+              <CardContent className="p-4 h-full">
+                <OpenLayersMap
+                  stores={results?.stores || []}
+                  highlightedStoreId={highlightedStoreId}
+                  onStoreHover={setHighlightedStoreId}
+                  userLocation={userLocationCoords}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between mb-2">
-                                  <h3 className="font-semibold text-lg truncate pr-2">{store.name}</h3>
-                                  <span className="text-blue-600 font-semibold text-sm flex-shrink-0">
-                                    {store.distance.toFixed(1)} km
-                                  </span>
-                                </div>
-
-                                <div className="space-y-2 text-sm text-muted-foreground">
-                                  <div className="flex items-center gap-2">
-                                    <MapPin className="h-4 w-4 flex-shrink-0" />
-                                    <span className="truncate">{store.address}</span>
-                                  </div>
-
-                                  {store.phone && (
-                                    <div className="flex items-center gap-2">
-                                      <Phone className="h-4 w-4 flex-shrink-0" />
-                                      <span>{store.phone}</span>
-                                    </div>
-                                  )}
-
-                                  {store.openingHours.length > 0 && (
-                                    <div className="flex items-center gap-2">
-                                      <Clock className="h-4 w-4 flex-shrink-0" />
-                                      <span className="truncate">{store.openingHours[0]}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 animate-fade-in">
-                    <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No stores found</h3>
-                    <p className="text-muted-foreground">
-                      Try searching for a different product or location.
-                    </p>
-                  </div>
+        {/* Mobile/Tablet layout - tabs */}
+        <div className="lg:hidden">
+          <Tabs defaultValue="list" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="list" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                <span className="hidden sm:inline">Store List</span>
+                <span className="sm:hidden">List</span>
+                {results && (
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {results.stores.length}
+                  </Badge>
                 )}
-              </>
-            ) : (
-              <div className="text-center py-12 animate-fade-in">
-                <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Ready to search</h3>
-                <p className="text-muted-foreground">
-                  Enter a product and location to find nearby stores.
-                </p>
-              </div>
-            )}
-          </div>
+              </TabsTrigger>
+              <TabsTrigger value="map" className="flex items-center gap-2">
+                <Map className="h-4 w-4" />
+                <span className="hidden sm:inline">Map View</span>
+                <span className="sm:hidden">Map</span>
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Map on the right - Always visible */}
-          <div className="flex-1">
-            <OpenLayersMap
-              stores={results?.stores || []}
-              highlightedStoreId={highlightedStoreId}
-              onStoreHover={setHighlightedStoreId}
-            />
-          </div>
+            <TabsContent value="list" className="mt-0">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="max-h-[70vh] overflow-y-auto">
+                    {renderStoreList()}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="map" className="mt-0">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="h-[75vh] w-full">
+                     <OpenLayersMap
+                       stores={results?.stores || []}
+                       highlightedStoreId={highlightedStoreId}
+                       onStoreHover={setHighlightedStoreId}
+                       userLocation={userLocationCoords}
+                     />
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
   );
+
+  // Helper function to render store list content
+  function renderStoreList() {
+    if (isLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="relative">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <div className="absolute inset-0 animate-ping">
+              <div className="h-12 w-12 rounded-full border-2 border-primary opacity-75"></div>
+            </div>
+          </div>
+          <div className="mt-6 text-center animate-fade-in">
+            <h3 className="text-lg font-semibold text-foreground mb-2">Searching stores...</h3>
+            <p className="text-sm text-muted-foreground">Finding the best places to buy {productName}</p>
+          </div>
+          <div className="mt-4 flex gap-1">
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+        </div>
+      );
+    }
+
+    if (!results) {
+      return (
+        <div className="text-center py-12 animate-fade-in">
+          <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">Ready to search</h3>
+          <p className="text-muted-foreground">
+            Enter a product and location to find nearby stores.
+          </p>
+        </div>
+      );
+    }
+
+    if (results.stores.length === 0) {
+      return (
+        <div className="text-center py-12 animate-fade-in">
+          <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">No stores found</h3>
+          <p className="text-muted-foreground">
+            Try searching for a different product or location.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {results.stores.map((store) => {
+          const categoryImage = getCategoryImage(store.store_type);
+
+          return (
+            <Card
+              key={store.id}
+              className={`transition-all duration-200 hover:shadow-lg cursor-pointer animate-fade-in ${
+                highlightedStoreId === store.id ? 'ring-2 ring-primary shadow-lg' : ''
+              }`}
+              onMouseEnter={() => setHighlightedStoreId(store.id)}
+              onMouseLeave={() => setHighlightedStoreId(null)}
+              onClick={() => handleStoreClick(store.id)}
+            >
+              <CardContent className="p-4">
+                <div className="flex gap-4">
+                  {categoryImage && (
+                    <div className="flex-shrink-0">
+                      <img
+                        src={categoryImage}
+                        alt={store.store_type}
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-semibold text-lg truncate pr-2">{store.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-blue-600 border-blue-200">
+                          {store.distance.toFixed(1)} km
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{store.address}</span>
+                      </div>
+
+                      {store.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 flex-shrink-0" />
+                          <span>{store.phone}</span>
+                        </div>
+                      )}
+
+                      {store.openingHours && store.openingHours.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{store.openingHours[0]}</span>
+                        </div>
+                      )}
+
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  }
 }

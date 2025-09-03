@@ -332,17 +332,14 @@ export function ProductSearch() {
           <p className="text-lg text-muted-foreground/80 mb-4">
             Find products in physical stores near you
           </p>
-          <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+          <div className="flex items-center justify-center gap-6 text-sm">
+            <div className="text-green-500 md:text-muted-foreground">
               Google Maps verified
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+            <div className="text-blue-500 md:text-muted-foreground">
               Distance-based search
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+            <div className="text-purple-500 md:text-muted-foreground">
               AI-powered search
             </div>
           </div>
