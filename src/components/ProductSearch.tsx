@@ -308,7 +308,7 @@ export function ProductSearch() {
     let locationCoords = null;
     try {
       locationCoords = await geocodeLocation(location);
-      //console.log('Location validated:', locationCoords);
+      console.log('Location validated:', locationCoords);
     } catch (geocodeError) {
       console.error('Location validation failed:', geocodeError);
       toast({
@@ -320,8 +320,18 @@ export function ProductSearch() {
       return;
     }
 
+    // Always navigate to search page with empty results initially
+    const searchResult = {
+      stores: [],
+      searchedProduct: productName,
+      totalResults: 0
+    };
+    
+    sessionStorage.setItem('searchResults', JSON.stringify(searchResult));
+    
     try {
       // Step 1: Generate LLM-powered search strategies
+      console.log('Calling generate-search-strategies...');
       const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
         body: {
           productName: productName.trim(),
@@ -329,77 +339,81 @@ export function ProductSearch() {
         }
       });
 
-      // Step 2: Look for the categories on OverPass
-      const searchPromises = [];
+      console.log('Strategy response:', strategiesResponse);
 
       if (strategiesResponse.error) {
         console.error('Strategy generation failed:', strategiesResponse.error);
-        setIsLoading(false);
+        // Navigate anyway with empty results
+        navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
         toast({
-          title: "Search Error",
-          description: `Failed to generate search strategies: ${strategiesResponse.error.message}`,
-          variant: "destructive",
+          title: "Search Started",
+          description: "Navigating to search page...",
         });
         return;
-      } else {
-        const storeCategories = strategiesResponse.data?.searchTerms || [];
-
-        // Use the categories directly for OSM search
-        const searchPromise = supabase.functions.invoke('search-osm-stores', {
-          body: {
-            userLat: locationCoords?.lat,
-            userLng: locationCoords?.lng,
-            radius: 5000,
-            categories: storeCategories
-          }
-        });
-        searchPromises.push(searchPromise.then(result => ({ source: 'openstreetmap', strategy: 'generated_categories', stores: result.data.stores, totalResults: result.data.totalResults })));
       }
 
-      // Wait for all searches to complete
-      const allStores = (await Promise.all(searchPromises)).flat();
-      const osmStores = allStores[0];
+      const storeCategories = strategiesResponse.data?.searchTerms || [];
+      console.log('Generated categories:', storeCategories);
 
-      // Check if we have results
-      if (osmStores.totalResults > 0) {
-        // Set final results and navigate to results page
-        const searchResult = {
-          stores: osmStores.stores,
-          searchedProduct: productName,
-          totalResults: osmStores.totalResults
-        };
-        
-        sessionStorage.setItem('searchResults', JSON.stringify(searchResult));
+      if (storeCategories.length === 0) {
+        // Navigate with empty results
         navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
-
         toast({
-          title: "Search Complete",
-          description: `Found ${osmStores.totalResults} stores`,
+          title: "Search Started",
+          description: "No categories found, but navigating to search page...",
         });
-      } else {
-        // No stores found
-        const searchResult = {
-          stores: [],
-          searchedProduct: productName,
-          totalResults: 0
-        };
-        
-        sessionStorage.setItem('searchResults', JSON.stringify(searchResult));
-        navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
-
-        toast({
-          title: "No Results",
-          description: "No stores found for this product",
-          variant: "default",
-        });
+        return;
       }
+
+      // Step 2: Search for stores
+      console.log('Calling search-osm-stores...');
+      const osmResponse = await supabase.functions.invoke('search-osm-stores', {
+        body: {
+          userLat: locationCoords?.lat,
+          userLng: locationCoords?.lng,
+          radius: 5000,
+          categories: storeCategories
+        }
+      });
+
+      console.log('OSM response:', osmResponse);
+
+      if (osmResponse.error) {
+        console.error('OSM search failed:', osmResponse.error);
+        // Navigate anyway with empty results
+        navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
+        toast({
+          title: "Search Started",
+          description: "Store search failed, but navigating to search page...",
+        });
+        return;
+      }
+
+      // Update results with actual data
+      const finalResult = {
+        stores: osmResponse.data?.stores || [],
+        searchedProduct: productName,
+        totalResults: osmResponse.data?.totalResults || 0
+      };
+      
+      sessionStorage.setItem('searchResults', JSON.stringify(finalResult));
+      
+      // Navigate to results page
+      navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
+
+      toast({
+        title: "Search Complete",
+        description: `Found ${finalResult.totalResults} stores`,
+      });
 
     } catch (error) {
       console.error('Search error:', error);
+      // Navigate anyway even if there's an error
+      navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
       toast({
-        title: "Search Error",
-        description: "An error occurred while searching. Please try again.",
-        variant: "destructive",
+        title: "Navigation Complete",
+        description: "Error occurred but navigating to search page...",
+        variant: "default",
       });
     } finally {
       setIsLoading(false);
