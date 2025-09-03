@@ -466,11 +466,6 @@ export default function SearchResults() {
                                     <span className="truncate">{store.openingHours[0]}</span>
                                   </div>
                                 )}
-                                
-                                <div className="flex items-center gap-2 text-xs">
-                                  <Globe className="h-3 w-3 flex-shrink-0" />
-                                  <span>Source: {store.source}</span>
-                                </div>
                               </div>
                             </div>
                           </div>
