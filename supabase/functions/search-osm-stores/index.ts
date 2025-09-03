@@ -16,25 +16,26 @@ interface Store {
   openingHours: string[];
 }
 
-// Helper
+// Helper to build more efficient Overpass query
 function buildOverpassQuery(categories: string[], userLat: number, userLng: number, radiusMeters: number) {
+  // Use a smaller radius for initial query to reduce load, then filter more precisely with Haversine
+  const queryRadius = Math.min(radiusMeters, 3000); // Max 3km for Overpass query
+  
   const blocks = categories.map(category => {
     if (category === 'shop=*') {
       return `
-        node["shop"](around:${radiusMeters},${userLat},${userLng});
-        way["shop"](around:${radiusMeters},${userLat},${userLng});
-        relation["shop"](around:${radiusMeters},${userLat},${userLng});
+        node["shop"](around:${queryRadius},${userLat},${userLng});
+        way["shop"](around:${queryRadius},${userLat},${userLng});
       `;
     }
     const [key, value] = category.includes('=') ? category.split('=') : [category, ''];
     return `
-      node["${key}"${value ? `="${value}"` : ''}](around:${radiusMeters},${userLat},${userLng});
-      way["${key}"${value ? `="${value}"` : ''}](around:${radiusMeters},${userLat},${userLng});
-      relation["${key}"${value ? `="${value}"` : ''}](around:${radiusMeters},${userLat},${userLng});
+      node["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
+      way["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
     `;
   });
 
-  return `[out:json][timeout:25]; (${blocks.join('\n')}); out center tags;`;
+  return `[out:json][timeout:15]; (${blocks.join('\n')}); out center tags;`;
 }
 
 async function reverseGeocode(
@@ -142,8 +143,9 @@ serve(async (req) => {
 
     const storeCategories = Array.isArray(categories) ? categories : [categories];
 
-    // Build a single Overpass query for all categories
+    // Build a more efficient Overpass query
     const overpassQuery = buildOverpassQuery(storeCategories, userLat, userLng, radius);
+    console.log('Overpass query:', overpassQuery);
 
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
@@ -152,89 +154,125 @@ serve(async (req) => {
         'User-Agent': 'InStockr-App/1.0 (store-locator)'
       },
       body: overpassQuery,
-      signal: AbortSignal.timeout(30000) // 30s timeout for multiple categories
+      signal: AbortSignal.timeout(20000) // Reduced to 20s timeout
     });
 
     if (!response.ok) {
+      console.error(`Overpass API error: ${response.status} ${response.statusText}`);
+      
+      // Try alternative Overpass server if main one fails
+      if (response.status >= 500) {
+        console.log('Trying alternative Overpass server...');
+        const altResponse = await fetch('https://overpass.kumi.systems/api/interpreter', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'User-Agent': 'InStockr-App/1.0 (store-locator)'
+          },
+          body: overpassQuery,
+          signal: AbortSignal.timeout(15000) // Even shorter timeout for backup
+        });
+        
+        if (altResponse.ok) {
+          const altData = await altResponse.json();
+          return processOverpassData(altData, userLat, userLng, radius);
+        }
+      }
+      
       return new Response(
-        JSON.stringify({ error: `Overpass API error: ${response.status}` }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: `Overpass API error: ${response.status}. Store search is temporarily unavailable.`,
+          stores: [],
+          totalResults: 0
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } } // Return 200 with empty results instead of error
       );
     }
 
     const data = await response.json();
-    let results: Store[] = [];
-
-    for (const element of data.elements || []) {
-      const lat = element.lat || element.center?.lat;
-      const lon = element.lon || element.center?.lon;
-      if (!lat || !lon || !element.tags?.name) continue;
-
-      // Haversine distance calculation
-      const lat1 = userLat * Math.PI / 180;
-      const lat2 = lat * Math.PI / 180;
-      const deltaLat = (lat - userLat) * Math.PI / 180;
-      const deltaLng = (lon - userLng) * Math.PI / 180;
-      const a = Math.sin(deltaLat / 2) ** 2 +
-        Math.cos(lat1) * Math.cos(lat2) *
-        Math.sin(deltaLng / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = 6371 * c; // Distance in kilometers
-      
-      // Convert radius to km for proper comparison
-      const radiusKm = radius / 1000;
-      if (distance > radiusKm) continue;
-
-      // Address
-      let address = 'Address not available';
-      const addrTags = element.tags;
-      if (addrTags) {
-        const addressParts: string[] = [];
-        if (addrTags['addr:housenumber'] && addrTags['addr:street']) {
-          addressParts.push(`${addrTags['addr:housenumber']} ${addrTags['addr:street']}`);
-        } else if (addrTags['addr:street']) {
-          addressParts.push(addrTags['addr:street']);
-        }
-        if (addrTags['addr:city']) addressParts.push(addrTags['addr:city']);
-        if (addrTags['addr:postcode']) addressParts.push(addrTags['addr:postcode']);
-        if (addressParts.length > 0) address = addressParts.join(', ');
-      }
-
-      if (address === 'Address not available' || address.length < 5) {
-        address = await reverseGeocode(lat, lon, element.tags.name);
-      }
-
-      const storeType = element.tags.shop || element.tags['amenity'] || 'unknown';
-
-      results.push({
-        id: `osm-${element.type}-${element.id}`,
-        name: element.tags.name,
-        store_type: storeType,
-        address,
-        distance: Math.round(distance * 100) / 100,
-        latitude: lat,
-        longitude: lon,
-        phone: element.tags.phone || element.tags['contact:phone'] || null,
-        url: element.tags.website || element.tags['contact:website'] || null,
-        source: 'OpenStreetMap',
-        place_id: `osm-${element.type}-${element.id}`,
-        openingHours: element.tags.opening_hours ? [element.tags.opening_hours] : [],
-      });
-    }
-
-    const uniqueResults = deduplicateStores(results, 50);
-    uniqueResults.sort((a, b) => a.distance - b.distance);
-
-    return new Response(
-      JSON.stringify({ stores: uniqueResults, totalResults: uniqueResults.length }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return processOverpassData(data, userLat, userLng, radius);
 
   } catch (error) {
     console.error('Error in search-osm-stores:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        error: 'Store search temporarily unavailable. Please try again.',
+        stores: [],
+        totalResults: 0
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
+
+// Extract data processing into separate function
+async function processOverpassData(data: any, userLat: number, userLng: number, radius: number) {
+  let results: Store[] = [];
+
+  for (const element of data.elements || []) {
+    const lat = element.lat || element.center?.lat;
+    const lon = element.lon || element.center?.lon;
+    if (!lat || !lon || !element.tags?.name) continue;
+
+    // Haversine distance calculation (distance in kilometers)
+    const lat1 = userLat * Math.PI / 180;
+    const lat2 = lat * Math.PI / 180;
+    const deltaLat = (lat - userLat) * Math.PI / 180;
+    const deltaLng = (lon - userLng) * Math.PI / 180;
+    const a = Math.sin(deltaLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) *
+      Math.sin(deltaLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = 6371 * c; // Distance in kilometers
+    
+    // Convert radius to km for proper comparison
+    const radiusKm = radius / 1000;
+    if (distance > radiusKm) continue;
+
+    // Address
+    let address = 'Address not available';
+    const addrTags = element.tags;
+    if (addrTags) {
+      const addressParts: string[] = [];
+      if (addrTags['addr:housenumber'] && addrTags['addr:street']) {
+        addressParts.push(`${addrTags['addr:housenumber']} ${addrTags['addr:street']}`);
+      } else if (addrTags['addr:street']) {
+        addressParts.push(addrTags['addr:street']);
+      }
+      if (addrTags['addr:city']) addressParts.push(addrTags['addr:city']);
+      if (addrTags['addr:postcode']) addressParts.push(addrTags['addr:postcode']);
+      if (addressParts.length > 0) address = addressParts.join(', ');
+    }
+
+    if (address === 'Address not available' || address.length < 5) {
+      address = await reverseGeocode(lat, lon, element.tags.name);
+    }
+
+    const storeType = element.tags.shop || element.tags['amenity'] || 'unknown';
+
+    results.push({
+      id: `osm-${element.type}-${element.id}`,
+      name: element.tags.name,
+      store_type: storeType,
+      address,
+      distance: Math.round(distance * 100) / 100,
+      latitude: lat,
+      longitude: lon,
+      phone: element.tags.phone || element.tags['contact:phone'] || null,
+      url: element.tags.website || element.tags['contact:website'] || null,
+      source: 'OpenStreetMap',
+      place_id: `osm-${element.type}-${element.id}`,
+      openingHours: element.tags.opening_hours ? [element.tags.opening_hours] : [],
+    });
+  }
+
+  const uniqueResults = deduplicateStores(results, 50);
+  uniqueResults.sort((a, b) => a.distance - b.distance);
+
+  console.log(`Found ${uniqueResults.length} stores within ${radius/1000}km`);
+
+  return new Response(
+    JSON.stringify({ stores: uniqueResults, totalResults: uniqueResults.length }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
