@@ -210,53 +210,6 @@ export default function SearchResults() {
     }
   }, [searchParams]);
 
-  // OpenStreetMap Location Autocomplete
-  const fetchLocationSuggestions = async (input: string) => {
-    if (input.length < 3) {
-      setLocationSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setIsLoadingSuggestions(true);
-    try {
-      const response = await supabase.functions.invoke('osm-location-autocomplete', {
-        body: { input }
-      });
-
-      if (response.data?.predictions) {
-        const suggestions = response.data.predictions.map((p: any) => p.description);
-        setLocationSuggestions(suggestions);
-        setShowSuggestions(suggestions.length > 0);
-      } else {
-        setLocationSuggestions([]);
-        setShowSuggestions(false);
-      }
-    } catch (error) {
-      console.error('Error fetching location suggestions:', error);
-      setLocationSuggestions([]);
-      setShowSuggestions(false);
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  };
-
-  useEffect(() => {
-    // Only fetch suggestions if location wasn't auto-detected
-    if (!isLocationAutoDetected) {
-      const timeoutId = setTimeout(() => {
-        fetchLocationSuggestions(location);
-      }, 300); // Debounce API calls
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [location, isLocationAutoDetected]);
-
-  const handleLocationSelect = (selectedLocation: string) => {
-    setLocation(selectedLocation);
-    setShowSuggestions(false);
-  };
-
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast({
