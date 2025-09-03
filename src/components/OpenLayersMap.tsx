@@ -36,7 +36,6 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
   const mapRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
-  const overlayInstanceRef = useRef<Overlay | null>(null);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // Get user location
@@ -48,10 +47,6 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
             lat: position.coords.latitude,
             lng: position.coords.longitude
           };
-          // Re-render map with user location if map is already initialized
-          if (mapInstanceRef.current) {
-            addUserLocationMarker();
-          }
         },
         (error) => {
           console.log('Geolocation error:', error);
@@ -61,58 +56,26 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
     }
   }, []);
 
-  const addUserLocationMarker = () => {
-    if (!mapInstanceRef.current || !userLocationRef.current) return;
-
-    const vectorLayer = mapInstanceRef.current.getLayers().getArray()[1] as VectorLayer<VectorSource>;
-    const source = vectorLayer.getSource();
-
-    // Create user location marker
-    const userMarker = new Feature({
-      geometry: new Point(fromLonLat([userLocationRef.current.lng, userLocationRef.current.lat])),
-      isUserLocation: true,
-    });
-
-    userMarker.setStyle(
-      new Style({
-        image: new Icon({
-          anchor: [0.5, 1],
-          src: 'data:image/svg+xml;base64,' + btoa(`
-            <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <filter id="userShadow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.3"/>
-                </filter>
-              </defs>
-              <path fill="#10B981" stroke="#059669" stroke-width="2" filter="url(#userShadow)" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
-              <circle fill="white" cx="12" cy="12" r="6"/>
-              <circle fill="#059669" cx="12" cy="12" r="3">
-                <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite"/>
-              </circle>
-            </svg>
-          `),
-          scale: 1.1,
-        }),
-      })
-    );
-
-    source?.addFeature(userMarker);
-  };
-
   useEffect(() => {
     if (!mapRef.current) return;
 
     // Default center - Frankfurt coordinates
     const defaultCenter = fromLonLat([8.6821, 50.1109]);
     
-    // Calculate center if we have stores
+    // Calculate center - prioritize user location, then stores
     const getMapCenter = () => {
-      if (stores.length === 0) return defaultCenter;
-      
-      const avgLng = stores.reduce((sum, store) => sum + store.longitude, 0) / stores.length;
-      const avgLat = stores.reduce((sum, store) => sum + store.latitude, 0) / stores.length;
-      
-      return fromLonLat([avgLng, avgLat]);
+      // If we have user location, center on that
+      if (userLocationRef.current) {
+        return fromLonLat([userLocationRef.current.lng, userLocationRef.current.lat]);
+      }
+      // Otherwise, center on stores if available
+      if (stores.length > 0) {
+        const avgLng = stores.reduce((sum, store) => sum + store.longitude, 0) / stores.length;
+        const avgLat = stores.reduce((sum, store) => sum + store.latitude, 0) / stores.length;
+        return fromLonLat([avgLng, avgLat]);
+      }
+      // Default to Frankfurt
+      return defaultCenter;
     };
 
     // Create popup overlay
@@ -124,11 +87,11 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
         },
       },
     });
-    overlayInstanceRef.current = overlay;
 
     // Create vector layer for markers
     const vectorSource = new VectorSource();
     
+    // Add store markers
     stores.forEach((store) => {
       const marker = new Feature({
         geometry: new Point(fromLonLat([store.longitude, store.latitude])),
@@ -141,12 +104,7 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
             anchor: [0.5, 1],
             src: 'data:image/svg+xml;base64,' + btoa(`
               <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.25"/>
-                  </filter>
-                </defs>
-                <path fill="#3B82F6" stroke="#1E40AF" stroke-width="2" filter="url(#shadow)" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+                <path fill="#3B82F6" stroke="#1E40AF" stroke-width="2" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
                 <circle fill="white" cx="12" cy="12" r="6"/>
                 <circle fill="#1E40AF" cx="12" cy="12" r="3"/>
               </svg>
@@ -158,6 +116,34 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
 
       vectorSource.addFeature(marker);
     });
+
+    // Add user location marker if we have it
+    if (userLocationRef.current) {
+      const userMarker = new Feature({
+        geometry: new Point(fromLonLat([userLocationRef.current.lng, userLocationRef.current.lat])),
+        isUserLocation: true,
+      });
+
+      userMarker.setStyle(
+        new Style({
+          image: new Icon({
+            anchor: [0.5, 1],
+            src: 'data:image/svg+xml;base64,' + btoa(`
+              <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#10B981" stroke="#059669" stroke-width="2" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+                <circle fill="white" cx="12" cy="12" r="6"/>
+                <circle fill="#059669" cx="12" cy="12" r="3">
+                  <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite"/>
+                </circle>
+              </svg>
+            `),
+            scale: 1.1,
+          }),
+        })
+      );
+
+      vectorSource.addFeature(userMarker);
+    }
 
     const vectorLayer = new VectorLayer({
       source: vectorSource,
@@ -175,14 +161,11 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
       overlays: [overlay],
       view: new View({
         center: getMapCenter(),
-        zoom: stores.length > 0 ? 13 : 10,
+        zoom: userLocationRef.current ? 14 : (stores.length > 0 ? 13 : 10),
       }),
     });
 
     mapInstanceRef.current = map;
-
-    // Add user location marker if available
-    addUserLocationMarker();
 
     // Handle click events
     map.on('click', (evt) => {
@@ -195,7 +178,7 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
         // Show popup
         overlay.setPosition(coordinate);
         
-        // Update popup content with enhanced styling
+        // Update popup content
         if (overlayRef.current) {
           overlayRef.current.innerHTML = `
             <div class="bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-200 min-w-[220px] max-w-[280px] relative">
@@ -289,7 +272,6 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
       if (!store) return;
       
       const isHighlighted = store.id === highlightedStoreId;
-      const uniqueId = store.id.replace(/[^a-zA-Z0-9]/g, ''); // Make sure ID is valid for SVG
       
       feature.setStyle(
         new Style({
@@ -297,16 +279,9 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
             anchor: [0.5, 1],
             src: 'data:image/svg+xml;base64=' + btoa(`
               <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <filter id="shadow${uniqueId}" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="${isHighlighted ? '4' : '2'}" stdDeviation="${isHighlighted ? '6' : '3'}" flood-color="#000000" flood-opacity="${isHighlighted ? '0.4' : '0.25'}"/>
-                  </filter>
-                </defs>
-                <path fill="${isHighlighted ? '#EF4444' : '#3B82F6'}" stroke="${isHighlighted ? '#DC2626' : '#1E40AF'}" stroke-width="2" filter="url(#shadow${uniqueId})" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
+                <path fill="${isHighlighted ? '#EF4444' : '#3B82F6'}" stroke="${isHighlighted ? '#DC2626' : '#1E40AF'}" stroke-width="2" d="M12 0C5.4 0 0 5.4 0 12c0 12 12 24 12 24s12-12 12-24C24 5.4 18.6 0 12 0z"/>
                 <circle fill="white" cx="12" cy="12" r="6"/>
-                <circle fill="${isHighlighted ? '#DC2626' : '#1E40AF'}" cx="12" cy="12" r="3">
-                  ${isHighlighted ? '<animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite"/>' : ''}
-                </circle>
+                <circle fill="${isHighlighted ? '#DC2626' : '#1E40AF'}" cx="12" cy="12" r="3"/>
               </svg>
             `),
             scale: isHighlighted ? 1.2 : 1,
