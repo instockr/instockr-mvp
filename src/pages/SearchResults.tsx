@@ -507,15 +507,15 @@ export default function SearchResults() {
               />
             </div>
 
-            <Button onClick={getCurrentLocation} variant="outline" size="sm">
-              <MapPin className="h-4 w-4" />
+            <Button onClick={getCurrentLocation} variant="outline" className="h-10">
+              <MapPin className="h-5 w-5" />
             </Button>
 
-            <Button onClick={handleSearch} disabled={isLoading}>
+            <Button onClick={handleSearch} disabled={isLoading} className="h-10">
               {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <Search className="h-4 w-4" />
+                <Search className="h-5 w-5" />
               )}
             </Button>
           </div>
