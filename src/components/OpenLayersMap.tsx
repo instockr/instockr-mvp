@@ -284,6 +284,10 @@ export function OpenLayersMap({ stores, highlightedStoreId, onStoreHover }: Open
     
     source?.forEachFeature((feature) => {
       const store = feature.get('store') as Store;
+      
+      // Skip non-store features (like user location marker)
+      if (!store) return;
+      
       const isHighlighted = store.id === highlightedStoreId;
       
       feature.setStyle(
