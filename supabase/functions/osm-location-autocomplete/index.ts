@@ -30,8 +30,7 @@ serve(async (req) => {
     autocompleteUrl.searchParams.set('limit', '5');
     autocompleteUrl.searchParams.set('addressdetails', '1');
     autocompleteUrl.searchParams.set('extratags', '1');
-    // Focus on cities, towns, and places
-    autocompleteUrl.searchParams.set('featuretype', 'city');
+    // Remove featuretype filter to allow all address types including streets
 
     const response = await fetch(autocompleteUrl.toString(), {
       headers: {
@@ -44,21 +43,28 @@ serve(async (req) => {
     if (response.ok && data && Array.isArray(data)) {
       // Transform Nominatim response to match Google Places format
       const predictions = data
-        .filter(item => {
-          // Filter for cities, towns, villages, and significant places
-          const type = item.type;
-          const addressType = item.address?.city || item.address?.town || item.address?.village;
-          return type === 'city' || type === 'town' || type === 'village' ||
-            type === 'municipality' || addressType;
-        })
         .map(item => {
-          // Build display name from address components
+          // Build display name from address components for all address types
           let displayName = '';
           if (item.address) {
             const parts: String[] = [];
-            if (item.address.city) parts.push(item.address.city);
-            else if (item.address.town) parts.push(item.address.town);
-            else if (item.address.village) parts.push(item.address.village);
+            
+            // Add street info if available
+            if (item.address.house_number && item.address.road) {
+              parts.push(`${item.address.house_number} ${item.address.road}`);
+            } else if (item.address.road) {
+              parts.push(item.address.road);
+            }
+            
+            // Add area info
+            if (item.address.suburb || item.address.city_district) {
+              parts.push(item.address.suburb || item.address.city_district);
+            }
+            
+            // Add city info
+            if (item.address.city || item.address.town || item.address.village) {
+              parts.push(item.address.city || item.address.town || item.address.village);
+            }
 
             if (item.address.state) parts.push(item.address.state);
             if (item.address.country) parts.push(item.address.country);
@@ -74,8 +80,8 @@ serve(async (req) => {
             description: displayName,
             place_id: `osm-${item.place_id}`,
             structured_formatting: {
-              main_text: item.address?.city || item.address?.town || item.address?.village || item.name,
-              secondary_text: item.address?.state || item.address?.country || ''
+              main_text: item.address?.road || item.address?.city || item.address?.town || item.address?.village || item.name,
+              secondary_text: item.address?.city || item.address?.state || item.address?.country || ''
             }
           };
         })

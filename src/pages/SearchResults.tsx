@@ -125,8 +125,9 @@ export default function SearchResults() {
     // Validate location before proceeding
     let locationCoords = null;
     try {
+      console.log('About to geocode location for search:', location);
       locationCoords = await geocodeLocation(location);
-      console.log('Location validated:', locationCoords);
+      console.log('Search will use these exact coordinates:', locationCoords);
     } catch (geocodeError) {
       console.error('Location validation failed:', geocodeError);
       toast({
