@@ -412,30 +412,11 @@ export function ProductSearch() {
                   id="location"
                   placeholder="Enter city name (e.g., Milan, New York, Paris)"
                   value={location}
-                  onChange={(e) => {
-                    setLocation(e.target.value);
-                    setIsLocationAutoDetected(false); // Reset flag when user types
-                    // Show suggestions if user is typing and has enough characters
-                    if (e.target.value.length >= 3) {
-                      setShowSuggestions(true);
-                    } else {
-                      setShowSuggestions(false);
-                    }
-                  }}
+                  onChange={(e) => setLocation(e.target.value)}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
-                      setShowSuggestions(false);
                       handleSearch();
                     }
-                  }}
-                  onFocus={() => {
-                    if (!isLocationAutoDetected && location.length >= 3) {
-                      setShowSuggestions(true);
-                    }
-                  }}
-                  onBlur={() => {
-                    // Use a longer timeout to allow clicking on suggestions
-                    setTimeout(() => setShowSuggestions(false), 300);
                   }}
                   className="pl-4 pr-12 py-3 text-lg border-2 border-muted-foreground/20 bg-background/90 backdrop-blur-sm
                             focus:border-green-500/50 focus:ring-2 focus:ring-green-500/10 focus:bg-background 
@@ -444,30 +425,6 @@ export function ProductSearch() {
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60">
                   <Globe className="h-5 w-5" />
                 </div>
-                {showSuggestions && locationSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-50 bg-background border border-border rounded-lg shadow-2xl mt-2 max-h-48 overflow-y-auto">
-                    {isLoadingSuggestions ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                        <span className="ml-2 text-sm text-muted-foreground">Loading suggestions...</span>
-                      </div>
-                    ) : (
-                      locationSuggestions.map((suggestion, index) => (
-                        <button
-                          key={index}
-                          className="w-full px-4 py-3 text-left hover:bg-muted border-b border-border/30 last:border-b-0 flex items-center gap-3
-                                    transition-all duration-200 first:rounded-t-lg last:rounded-b-lg"
-                          onClick={() => handleLocationSelect(suggestion)}
-                        >
-                          <div className="p-1 rounded-full bg-gradient-to-r from-green-400 to-teal-400">
-                            <MapPin className="h-3 w-3 text-white" />
-                          </div>
-                          <span className="font-medium">{suggestion}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
               </div>
               <Button
                 variant="outline"
