@@ -442,18 +442,15 @@ export default function SearchResults() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between mb-2">
                                 <h3 className="font-semibold text-lg truncate pr-2">{store.name}</h3>
-                                <Badge className={getStoreTypeColor(store.store_type)}>
-                                  {store.store_type}
-                                </Badge>
+                                <span className="text-blue-600 font-semibold text-sm flex-shrink-0">
+                                  {store.distance.toFixed(1)} km
+                                </span>
                               </div>
                               
                               <div className="space-y-2 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-2">
                                   <MapPin className="h-4 w-4 flex-shrink-0" />
                                   <span className="truncate">{store.address}</span>
-                                  <span className="flex-shrink-0 font-medium">
-                                    {store.distance.toFixed(1)} km
-                                  </span>
                                 </div>
                                 
                                 {store.phone && (
