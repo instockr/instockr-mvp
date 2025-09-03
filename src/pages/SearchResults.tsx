@@ -524,19 +524,6 @@ export default function SearchResults() {
 
       {/* Main content with responsive tabs */}
       <div className="max-w-7xl mx-auto p-4">
-        {/* Results summary */}
-        {results && (
-          <div className="mb-6">
-            <div className="flex items-center gap-4 flex-wrap">
-              <h2 className="text-2xl font-bold">
-                {results.totalResults} stores found
-              </h2>
-              <Badge variant="secondary" className="text-sm">
-                for "{results.searchedProduct}"
-              </Badge>
-            </div>
-          </div>
-        )}
 
         {/* Desktop layout - side by side */}
         <div className="hidden lg:flex gap-4 h-[calc(100vh-240px)]">
