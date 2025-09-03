@@ -341,17 +341,10 @@ export default function SearchResults() {
       <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto p-4">
           <div className="flex items-center gap-4 mb-4">
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
               onClick={() => navigate('/')}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Search
-            </Button>
-            
-            <div className="flex items-center gap-2">
               <img
                 src={instockrLogo}
                 alt="InStockr Logo"
@@ -360,7 +353,7 @@ export default function SearchResults() {
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
                 InStockr
               </h1>
-            </div>
+            </button>
           </div>
 
           {/* Compact search form */}
