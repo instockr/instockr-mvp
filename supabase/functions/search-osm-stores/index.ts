@@ -19,16 +19,16 @@ interface Store {
 // Helper to build simple, individual Overpass queries with result limit
 function buildSimpleOverpassQuery(category: string, userLat: number, userLng: number, radiusMeters: number) {
   const queryRadius = Math.min(radiusMeters, 3000); // Max 3km for Overpass query
-  
+
   if (category === 'shop=*') {
-    return `[out:json][limit:30]; (
+    return `[out:json]; (
       node["shop"](around:${queryRadius},${userLat},${userLng});
       way["shop"](around:${queryRadius},${userLat},${userLng});
     ); out center tags;`;
   }
-  
+
   const [key, value] = category.includes('=') ? category.split('=') : [category, ''];
-  return `[out:json][limit:30]; (
+  return `[out:json]; (
     node["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
     way["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
   ); out center tags;`;
@@ -141,14 +141,10 @@ serve(async (req) => {
 
     const storeCategories = Array.isArray(categories) ? categories : [categories];
 
-    // Make parallel queries for each category (much faster than one complex query)
-    console.log('🌐 Starting parallel Overpass queries at:', new Date().toISOString());
-    const queryStart = Date.now();
-    
     const queryPromises = storeCategories.map(async (category, index) => {
       const query = buildSimpleOverpassQuery(category, userLat, userLng, radius);
-      console.log(`Query ${index + 1} for ${category}:`, query);
-      
+      // console.log(`Query ${index + 1} for ${category}:`, query);
+
       try {
         const response = await fetch('https://overpass-api.de/api/interpreter', {
           method: 'POST',
@@ -172,7 +168,7 @@ serve(async (req) => {
             body: query,
             signal: AbortSignal.timeout(6000)
           });
-          
+
           if (altResponse.ok) {
             console.log(`Query ${index + 1} succeeded on alternative server`);
             return await altResponse.json();
@@ -183,7 +179,7 @@ serve(async (req) => {
         }
 
         const data = await response.json();
-        console.log(`✅ Query ${index + 1} completed with ${data.elements?.length || 0} results`);
+        // console.log(`✅ Query ${index + 1} completed with ${data.elements?.length || 0} results`);
         return data;
       } catch (error) {
         console.error(`Query ${index + 1} error:`, error);
@@ -193,22 +189,20 @@ serve(async (req) => {
 
     // Wait for all queries to complete
     const queryResults = await Promise.all(queryPromises);
-    const queryEnd = Date.now();
-    console.log('✅ All parallel queries completed in:', (queryEnd - queryStart), 'ms');
-    
+
     // Combine all results
     const combinedData = {
       elements: queryResults.flatMap(result => result.elements || [])
     };
-    
-    console.log('🔄 Starting data processing with', combinedData.elements.length, 'total elements');
+
+    //console.log('🔄 Starting data processing with', combinedData.elements.length, 'total elements');
     return processOverpassData(combinedData, userLat, userLng, radius);
 
   } catch (error) {
     console.error('Error in search-osm-stores:', error);
     console.error('Error details:', error.message, error.stack);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: `Search failed: ${error.message}. Details: ${error.stack?.slice(0, 200)}`,
         stores: [],
         totalResults: 0
@@ -266,7 +260,7 @@ async function processOverpassData(data: any, userLat: number, userLng: number, 
 
   const uniqueResults = deduplicateStores(results, 50);
 
-  console.log(`Found ${uniqueResults.length} stores within ${radius/1000}km`);
+  //console.log(`Found ${uniqueResults.length} stores within ${radius / 1000}km`);
 
   return new Response(
     JSON.stringify({ stores: uniqueResults, totalResults: uniqueResults.length }),

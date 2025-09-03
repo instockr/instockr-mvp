@@ -25,7 +25,7 @@ export default function SearchResults() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [productName, setProductName] = useState(searchParams.get('product') || '');
   const [location, setLocation] = useState(searchParams.get('location') || '');
   const [results, setResults] = useState<SearchResult | null>(null);
@@ -38,7 +38,7 @@ export default function SearchResults() {
 
   const geocodeLocation = async (locationStr: string) => {
     console.log('geocodeLocation called with:', locationStr);
-    
+
     // Case 1: already coordinates (lat, lng)
     const coordMatch = locationStr.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
     if (coordMatch) {
@@ -55,16 +55,16 @@ export default function SearchResults() {
       const geocodeUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
         locationStr
       )}&limit=1&addressdetails=1`;
-      
+
       console.log('Geocoding URL:', geocodeUrl);
-      
+
       const response = await fetch(geocodeUrl, {
         headers: {
           'User-Agent': 'InStockr-App/1.0 (store-locator)'
         }
       });
       const data = await response.json();
-      
+
       console.log('Nominatim geocoding response:', data);
 
       if (data && data.length > 0) {
@@ -88,19 +88,19 @@ export default function SearchResults() {
   // Calculate distance between two points using Haversine formula
   const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
     console.log('calculateDistance called with:', { lat1, lng1, lat2, lng2 });
-    
+
     // Validate coordinates
     if (!lat1 || !lng1 || !lat2 || !lng2) {
       console.error('Invalid coordinates provided to calculateDistance:', { lat1, lng1, lat2, lng2 });
       return 999; // Return large distance for invalid coordinates
     }
-    
+
     const R = 6371; // Earth's radius in kilometers
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLng = ((lng2 - lng1) * Math.PI) / 180;
-    
+
     console.log('Delta calculations:', { dLat, dLng });
-    
+
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
@@ -109,18 +109,18 @@ export default function SearchResults() {
       Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
-    
+
     console.log('Haversine calculation steps:', { a, c, distance });
-    
+
     return Math.round(distance * 100) / 100; // Round to 2 decimal places
   };
 
   const performSearch = async (productName: string, location: string) => {
     const startTime = performance.now();
-    console.log('🚀 Search started at:', new Date().toISOString());
-    
+    // console.log('🚀 Search started at:', new Date().toISOString());
+
     setIsLoading(true);
-    
+
     // Initialize empty results
     const initialResult = {
       stores: [],
@@ -133,17 +133,17 @@ export default function SearchResults() {
     let locationCoords = null;
     let geocodeStart: number;
     let geocodeEnd: number;
-    
+
     try {
       geocodeStart = performance.now();
-      console.log('📍 Starting geocoding at:', new Date().toISOString());
-      
-      console.log('About to geocode location for search:', location);
+      // console.log('📍 Starting geocoding at:', new Date().toISOString());
+
+      // console.log('About to geocode location for search:', location);
       locationCoords = await geocodeLocation(location);
-      
+
       geocodeEnd = performance.now();
-      console.log('✅ Geocoding completed in:', (geocodeEnd - geocodeStart).toFixed(2), 'ms');
-      console.log('Search will use these exact coordinates:', locationCoords);
+      // console.log('✅ Geocoding completed in:', (geocodeEnd - geocodeStart).toFixed(2), 'ms');
+      // console.log('Search will use these exact coordinates:', locationCoords);
     } catch (geocodeError) {
       console.error('Location validation failed:', geocodeError);
       toast({
@@ -161,11 +161,11 @@ export default function SearchResults() {
       let strategiesEnd: number;
       let osmStart: number;
       let osmEnd: number;
-      
+
       strategiesStart = performance.now();
-      console.log('🧠 Starting strategy generation at:', new Date().toISOString());
-      console.log('Calling generate-search-strategies...');
-      
+      //console.log('🧠 Starting strategy generation at:', new Date().toISOString());
+      //console.log('Calling generate-search-strategies...');
+
       const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
         body: {
           productName: productName.trim(),
@@ -174,8 +174,8 @@ export default function SearchResults() {
       });
 
       strategiesEnd = performance.now();
-      console.log('✅ Strategy generation completed in:', (strategiesEnd - strategiesStart).toFixed(2), 'ms');
-      console.log('Strategy response:', strategiesResponse);
+      //console.log('✅ Strategy generation completed in:', (strategiesEnd - strategiesStart).toFixed(2), 'ms');
+      //console.log('Strategy response:', strategiesResponse);
 
       if (strategiesResponse.error) {
         console.error('Strategy generation failed:', strategiesResponse.error);
@@ -203,14 +203,14 @@ export default function SearchResults() {
 
       // Step 3: Search for stores
       osmStart = performance.now();
-      console.log('🗺️ Starting OSM store search at:', new Date().toISOString());
+      //console.log('🗺️ Starting OSM store search at:', new Date().toISOString());
       console.log('Calling search-osm-stores...');
-      console.log('Sending coordinates to backend:', {
+      console.log('Sending coordinates to overpass:', {
         userLat: locationCoords?.lat,
         userLng: locationCoords?.lng,
         radius: 5000
       });
-      
+
       const osmResponse = await supabase.functions.invoke('search-osm-stores', {
         body: {
           userLat: locationCoords?.lat,
@@ -221,8 +221,8 @@ export default function SearchResults() {
       });
 
       osmEnd = performance.now();
-      console.log('✅ OSM search completed in:', (osmEnd - osmStart).toFixed(2), 'ms');
-      console.log('OSM response:', osmResponse);
+      // console.log('✅ OSM search completed in:', (osmEnd - osmStart).toFixed(2), 'ms');
+      // console.log('OSM response:', osmResponse);
 
       if (osmResponse.error) {
         console.error('OSM search failed:', osmResponse.error);
@@ -237,12 +237,12 @@ export default function SearchResults() {
 
       // Step 4: Calculate distances and update results
       const distanceStart = performance.now();
-      console.log('🧮 Starting distance calculation at:', new Date().toISOString());
-      
+      //console.log('🧮 Starting distance calculation at:', new Date().toISOString());
+
       const stores = osmResponse.data?.stores || [];
       console.log('User location coordinates:', locationCoords);
       console.log('Number of stores to calculate distance for:', stores.length);
-      
+
       const storesWithDistance = stores.map((store, index) => {
         console.log(`Store ${index + 1} (${store.name}):`, {
           storeLat: store.latitude,
@@ -250,16 +250,16 @@ export default function SearchResults() {
           userLat: locationCoords!.lat,
           userLng: locationCoords!.lng
         });
-        
+
         const calculatedDistance = calculateDistance(
           locationCoords!.lat,
           locationCoords!.lng,
           store.latitude,
           store.longitude
         );
-        
+
         console.log(`Calculated distance for ${store.name}:`, calculatedDistance, 'km');
-        
+
         return {
           ...store,
           distance: calculatedDistance
@@ -267,22 +267,22 @@ export default function SearchResults() {
       }).sort((a, b) => a.distance - b.distance);
 
       const distanceEnd = performance.now();
-      console.log('✅ Distance calculation completed in:', (distanceEnd - distanceStart).toFixed(2), 'ms');
+      // console.log('✅ Distance calculation completed in:', (distanceEnd - distanceStart).toFixed(2), 'ms');
 
       const finalResult = {
         stores: storesWithDistance,
         searchedProduct: productName,
         totalResults: osmResponse.data?.totalResults || 0
       };
-      
+
       const totalEnd = performance.now();
-      console.log('🏁 Total search completed in:', (totalEnd - startTime).toFixed(2), 'ms');
-      console.log('📊 Performance breakdown:');
-      console.log('- Geocoding:', (geocodeEnd - geocodeStart).toFixed(2), 'ms');
-      console.log('- Strategy generation:', (strategiesEnd - strategiesStart).toFixed(2), 'ms'); 
-      console.log('- OSM search:', (osmEnd - osmStart).toFixed(2), 'ms');
-      console.log('- Distance calculation:', (distanceEnd - distanceStart).toFixed(2), 'ms');
-      
+      //console.log('🏁 Total search completed in:', (totalEnd - startTime).toFixed(2), 'ms');
+      //console.log('📊 Performance breakdown:');
+      //console.log('- Geocoding:', (geocodeEnd - geocodeStart).toFixed(2), 'ms');
+      //console.log('- Strategy generation:', (strategiesEnd - strategiesStart).toFixed(2), 'ms');
+      //console.log('- OSM search:', (osmEnd - osmStart).toFixed(2), 'ms');
+      //console.log('- Distance calculation:', (distanceEnd - distanceStart).toFixed(2), 'ms');
+
       setResults(finalResult);
       sessionStorage.setItem('searchResults', JSON.stringify(finalResult));
 
@@ -308,19 +308,19 @@ export default function SearchResults() {
     const savedResults = sessionStorage.getItem('searchResults');
     const productParam = searchParams.get('product');
     const locationParam = searchParams.get('location');
-    
+
     if (savedResults) {
       try {
         const parsedResults = JSON.parse(savedResults);
         setResults(parsedResults);
-        
+
         // If we have search params but no stores, start the search
         if (productParam && locationParam && parsedResults.stores.length === 0) {
           performSearch(productParam, locationParam);
         }
       } catch (error) {
         console.error('Error parsing saved search results:', error);
-        
+
         // If there's an error but we have search params, start fresh search
         if (productParam && locationParam) {
           performSearch(productParam, locationParam);
@@ -489,7 +489,7 @@ export default function SearchResults() {
                 className="bg-background"
               />
             </div>
-            
+
             <div className="flex-1 relative">
               <Input
                 placeholder="Location..."
@@ -499,11 +499,11 @@ export default function SearchResults() {
                 className="bg-background"
               />
             </div>
-            
+
             <Button onClick={getCurrentLocation} variant="outline" size="sm">
               <MapPin className="h-4 w-4" />
             </Button>
-            
+
             <Button onClick={handleSearch} disabled={isLoading}>
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -534,8 +534,8 @@ export default function SearchResults() {
                 </div>
                 <div className="mt-4 flex gap-1">
                   <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
               </div>
             ) : results ? (
@@ -550,13 +550,12 @@ export default function SearchResults() {
                   <div className="space-y-4 pb-1">
                     {results.stores.map((store) => {
                       const categoryImage = getCategoryImage(store.store_type);
-                      
+
                       return (
                         <Card
                           key={store.id}
-                          className={`transition-all duration-200 hover:shadow-lg animate-fade-in ${
-                            highlightedStoreId === store.id ? 'ring-2 ring-primary shadow-lg' : ''
-                          }`}
+                          className={`transition-all duration-200 hover:shadow-lg animate-fade-in ${highlightedStoreId === store.id ? 'ring-2 ring-primary shadow-lg' : ''
+                            }`}
                           onMouseEnter={() => setHighlightedStoreId(store.id)}
                           onMouseLeave={() => setHighlightedStoreId(null)}
                         >
@@ -571,7 +570,7 @@ export default function SearchResults() {
                                   />
                                 </div>
                               )}
-                              
+
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between mb-2">
                                   <h3 className="font-semibold text-lg truncate pr-2">{store.name}</h3>
@@ -579,20 +578,20 @@ export default function SearchResults() {
                                     {store.distance.toFixed(1)} km
                                   </span>
                                 </div>
-                                
+
                                 <div className="space-y-2 text-sm text-muted-foreground">
                                   <div className="flex items-center gap-2">
                                     <MapPin className="h-4 w-4 flex-shrink-0" />
                                     <span className="truncate">{store.address}</span>
                                   </div>
-                                  
+
                                   {store.phone && (
                                     <div className="flex items-center gap-2">
                                       <Phone className="h-4 w-4 flex-shrink-0" />
                                       <span>{store.phone}</span>
                                     </div>
                                   )}
-                                  
+
                                   {store.openingHours.length > 0 && (
                                     <div className="flex items-center gap-2">
                                       <Clock className="h-4 w-4 flex-shrink-0" />
@@ -630,7 +629,7 @@ export default function SearchResults() {
 
           {/* Map on the right - Always visible */}
           <div className="flex-1">
-            <OpenLayersMap 
+            <OpenLayersMap
               stores={results?.stores || []}
               highlightedStoreId={highlightedStoreId}
               onStoreHover={setHighlightedStoreId}
