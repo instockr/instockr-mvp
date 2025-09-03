@@ -444,19 +444,19 @@ export function ProductSearch() {
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60">
                   <Globe className="h-5 w-5" />
                 </div>
-                {showSuggestions && (
-                  <div className="absolute top-full left-0 right-0 z-50 bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-2xl mt-2 max-h-48 overflow-y-auto">
+                {showSuggestions && locationSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-50 bg-background border border-border rounded-lg shadow-2xl mt-2 max-h-48 overflow-y-auto">
                     {isLoadingSuggestions ? (
                       <div className="flex items-center justify-center py-4">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                         <span className="ml-2 text-sm text-muted-foreground">Loading suggestions...</span>
                       </div>
-                    ) : locationSuggestions.length > 0 ? (
+                    ) : (
                       locationSuggestions.map((suggestion, index) => (
                         <button
                           key={index}
-                          className="w-full px-4 py-3 text-left hover:bg-muted/80 border-b border-border/30 last:border-b-0 flex items-center gap-3
-                                    transition-all duration-200 hover:scale-[1.01] transform first:rounded-t-lg last:rounded-b-lg"
+                          className="w-full px-4 py-3 text-left hover:bg-muted border-b border-border/30 last:border-b-0 flex items-center gap-3
+                                    transition-all duration-200 first:rounded-t-lg last:rounded-b-lg"
                           onClick={() => handleLocationSelect(suggestion)}
                         >
                           <div className="p-1 rounded-full bg-gradient-to-r from-green-400 to-teal-400">
@@ -465,10 +465,6 @@ export function ProductSearch() {
                           <span className="font-medium">{suggestion}</span>
                         </button>
                       ))
-                    ) : (
-                      <div className="px-4 py-3 text-sm text-muted-foreground">
-                        No location suggestions found
-                      </div>
                     )}
                   </div>
                 )}
