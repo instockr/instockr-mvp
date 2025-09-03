@@ -406,7 +406,7 @@ export default function SearchResults() {
         {results && !isLoading && (
           <div className="flex gap-6 h-[calc(100vh-200px)]">
             {/* Store list on the left */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto px-1">
               <div className="mb-4">
                 <h2 className="text-xl font-semibold">
                   {results.totalResults} stores found for "{results.searchedProduct}"
@@ -414,7 +414,7 @@ export default function SearchResults() {
               </div>
 
               {results.stores.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-4 pb-1">
                   {results.stores.map((store) => {
                     const categoryImage = getCategoryImage(store.store_type);
                     
