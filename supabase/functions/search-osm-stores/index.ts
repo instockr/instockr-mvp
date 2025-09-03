@@ -16,26 +16,22 @@ interface Store {
   openingHours: string[];
 }
 
-// Helper to build more efficient Overpass query
-function buildOverpassQuery(categories: string[], userLat: number, userLng: number, radiusMeters: number) {
-  // Use a smaller radius for initial query to reduce load, then filter more precisely with Haversine
+// Helper to build simple, individual Overpass queries
+function buildSimpleOverpassQuery(category: string, userLat: number, userLng: number, radiusMeters: number) {
   const queryRadius = Math.min(radiusMeters, 3000); // Max 3km for Overpass query
   
-  const blocks = categories.map(category => {
-    if (category === 'shop=*') {
-      return `
-        node["shop"](around:${queryRadius},${userLat},${userLng});
-        way["shop"](around:${queryRadius},${userLat},${userLng});
-      `;
-    }
-    const [key, value] = category.includes('=') ? category.split('=') : [category, ''];
-    return `
-      node["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
-      way["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
-    `;
-  });
-
-  return `[out:json]; (${blocks.join('\n')}); out center tags;`;
+  if (category === 'shop=*') {
+    return `[out:json]; (
+      node["shop"](around:${queryRadius},${userLat},${userLng});
+      way["shop"](around:${queryRadius},${userLat},${userLng});
+    ); out center tags;`;
+  }
+  
+  const [key, value] = category.includes('=') ? category.split('=') : [category, ''];
+  return `[out:json]; (
+    node["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
+    way["${key}"${value ? `="${value}"` : ''}](around:${queryRadius},${userLat},${userLng});
+  ); out center tags;`;
 }
 
 async function reverseGeocode(
@@ -145,63 +141,68 @@ serve(async (req) => {
 
     const storeCategories = Array.isArray(categories) ? categories : [categories];
 
-    // Build a more efficient Overpass query
+    // Make parallel queries for each category (much faster than one complex query)
+    console.log('🌐 Starting parallel Overpass queries at:', new Date().toISOString());
     const queryStart = Date.now();
-    const overpassQuery = buildOverpassQuery(storeCategories, userLat, userLng, radius);
-    console.log('Overpass query:', overpassQuery);
-    console.log('🌐 Starting Overpass API call at:', new Date().toISOString());
-
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain',
-        'User-Agent': 'InStockr-App/1.0 (store-locator)'
-      },
-      body: overpassQuery,
-      signal: AbortSignal.timeout(8000) // Optimized to 8s timeout
-    });
-
-    if (!response.ok) {
-      console.error(`Overpass API error: ${response.status} ${response.statusText}`);
+    
+    const queryPromises = storeCategories.map(async (category, index) => {
+      const query = buildSimpleOverpassQuery(category, userLat, userLng, radius);
+      console.log(`Query ${index + 1} for ${category}:`, query);
       
-      // Try alternative Overpass server if main one fails
-      if (response.status >= 500) {
-        console.log('Trying alternative Overpass server...');
-        const altResponse = await fetch('https://overpass.kumi.systems/api/interpreter', {
+      try {
+        const response = await fetch('https://overpass-api.de/api/interpreter', {
           method: 'POST',
           headers: {
             'Content-Type': 'text/plain',
             'User-Agent': 'InStockr-App/1.0 (store-locator)'
           },
-          body: overpassQuery,
-          signal: AbortSignal.timeout(6000) // Optimized to 6s for backup
+          body: query,
+          signal: AbortSignal.timeout(8000)
         });
-        
-        if (altResponse.ok) {
-          console.log('Alternative Overpass server succeeded');
-          const altData = await altResponse.json();
-          return processOverpassData(altData, userLat, userLng, radius);
-        } else {
-          console.error('Alternative Overpass server also failed:', altResponse.status);
-        }
-      }
-      
-      return new Response(
-        JSON.stringify({ 
-          error: `Overpass API error: ${response.status}. Store search is temporarily unavailable.`,
-          stores: [],
-          totalResults: 0
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } } // Return 200 with empty results instead of error
-      );
-    }
 
-    const data = await response.json();
+        if (!response.ok) {
+          console.error(`Query ${index + 1} failed with status:`, response.status);
+          // Try alternative server for this specific query
+          const altResponse = await fetch('https://overpass.kumi.systems/api/interpreter', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain',
+              'User-Agent': 'InStockr-App/1.0 (store-locator)'
+            },
+            body: query,
+            signal: AbortSignal.timeout(6000)
+          });
+          
+          if (altResponse.ok) {
+            console.log(`Query ${index + 1} succeeded on alternative server`);
+            return await altResponse.json();
+          } else {
+            console.error(`Query ${index + 1} failed on both servers`);
+            return { elements: [] };
+          }
+        }
+
+        const data = await response.json();
+        console.log(`✅ Query ${index + 1} completed with ${data.elements?.length || 0} results`);
+        return data;
+      } catch (error) {
+        console.error(`Query ${index + 1} error:`, error);
+        return { elements: [] };
+      }
+    });
+
+    // Wait for all queries to complete
+    const queryResults = await Promise.all(queryPromises);
     const queryEnd = Date.now();
-    console.log('✅ Overpass API completed in:', (queryEnd - queryStart), 'ms');
-    console.log('🔄 Starting data processing at:', new Date().toISOString());
+    console.log('✅ All parallel queries completed in:', (queryEnd - queryStart), 'ms');
     
-    return processOverpassData(data, userLat, userLng, radius);
+    // Combine all results
+    const combinedData = {
+      elements: queryResults.flatMap(result => result.elements || [])
+    };
+    
+    console.log('🔄 Starting data processing with', combinedData.elements.length, 'total elements');
+    return processOverpassData(combinedData, userLat, userLng, radius);
 
   } catch (error) {
     console.error('Error in search-osm-stores:', error);
