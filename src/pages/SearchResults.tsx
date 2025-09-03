@@ -538,9 +538,7 @@ export default function SearchResults() {
           <div className="w-1/2 overflow-y-auto">
             <Card className="h-full">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <List className="h-5 w-5" />
-                  Store List
+                <CardTitle>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
@@ -553,9 +551,7 @@ export default function SearchResults() {
           <div className="w-1/2">
             <Card className="h-full">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Map className="h-5 w-5" />
-                  Map View
+                <CardTitle>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0 h-[calc(100%-60px)]">
