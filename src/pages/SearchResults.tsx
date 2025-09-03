@@ -36,18 +36,180 @@ export default function SearchResults() {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isLocationAutoDetected, setIsLocationAutoDetected] = useState(false);
 
-  // Load results from sessionStorage on mount
+  const geocodeLocation = async (locationStr: string) => {
+    // Case 1: already coordinates (lat, lng)
+    const coordMatch = locationStr.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
+    if (coordMatch) {
+      return {
+        lat: parseFloat(coordMatch[1]),
+        lng: parseFloat(coordMatch[2]),
+      };
+    }
+
+    // Case 2: free geocoding with Nominatim
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          locationStr
+        )}&limit=1&addressdetails=1`
+      );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+        };
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+    }
+
+    throw new Error(`Location "${locationStr}" not found. Please try again.`);
+  };
+
+  const performSearch = async (productName: string, location: string) => {
+    setIsLoading(true);
+    
+    // Initialize empty results
+    const initialResult = {
+      stores: [],
+      searchedProduct: productName,
+      totalResults: 0
+    };
+    setResults(initialResult);
+
+    // Validate location before proceeding
+    let locationCoords = null;
+    try {
+      locationCoords = await geocodeLocation(location);
+      console.log('Location validated:', locationCoords);
+    } catch (geocodeError) {
+      console.error('Location validation failed:', geocodeError);
+      toast({
+        title: "Invalid Location",
+        description: "Please enter a valid city or location that can be found on the map.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Step 1: Generate LLM-powered search strategies
+      console.log('Calling generate-search-strategies...');
+      const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
+        body: {
+          productName: productName.trim(),
+          location: location.trim()
+        }
+      });
+
+      console.log('Strategy response:', strategiesResponse);
+
+      if (strategiesResponse.error) {
+        console.error('Strategy generation failed:', strategiesResponse.error);
+        toast({
+          title: "Search Error",
+          description: `Failed to generate search strategies: ${strategiesResponse.error.message}`,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const storeCategories = strategiesResponse.data?.searchTerms || [];
+      console.log('Generated categories:', storeCategories);
+
+      if (storeCategories.length === 0) {
+        toast({
+          title: "No Results",
+          description: "No store categories found for this product",
+          variant: "default",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 2: Search for stores
+      console.log('Calling search-osm-stores...');
+      const osmResponse = await supabase.functions.invoke('search-osm-stores', {
+        body: {
+          userLat: locationCoords?.lat,
+          userLng: locationCoords?.lng,
+          radius: 5000,
+          categories: storeCategories
+        }
+      });
+
+      console.log('OSM response:', osmResponse);
+
+      if (osmResponse.error) {
+        console.error('OSM search failed:', osmResponse.error);
+        toast({
+          title: "Search Error",
+          description: "Store search failed. Please try again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Update results with actual data
+      const finalResult = {
+        stores: osmResponse.data?.stores || [],
+        searchedProduct: productName,
+        totalResults: osmResponse.data?.totalResults || 0
+      };
+      
+      setResults(finalResult);
+      sessionStorage.setItem('searchResults', JSON.stringify(finalResult));
+
+      toast({
+        title: "Search Complete",
+        description: `Found ${finalResult.totalResults} stores`,
+      });
+
+    } catch (error) {
+      console.error('Search error:', error);
+      toast({
+        title: "Search Error",
+        description: "An error occurred while searching. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load results from sessionStorage and start search if needed
   useEffect(() => {
     const savedResults = sessionStorage.getItem('searchResults');
+    const productParam = searchParams.get('product');
+    const locationParam = searchParams.get('location');
+    
     if (savedResults) {
       try {
         const parsedResults = JSON.parse(savedResults);
         setResults(parsedResults);
+        
+        // If we have search params but no stores, start the search
+        if (productParam && locationParam && parsedResults.stores.length === 0) {
+          performSearch(productParam, locationParam);
+        }
       } catch (error) {
         console.error('Error parsing saved search results:', error);
+        
+        // If there's an error but we have search params, start fresh search
+        if (productParam && locationParam) {
+          performSearch(productParam, locationParam);
+        }
       }
+    } else if (productParam && locationParam) {
+      // No saved results but we have search params, start search
+      performSearch(productParam, locationParam);
     }
-  }, []);
+  }, [searchParams]);
 
   // OpenStreetMap Location Autocomplete
   const fetchLocationSuggestions = async (input: string) => {
@@ -174,38 +336,6 @@ export default function SearchResults() {
     );
   };
 
-  const geocodeLocation = async (locationStr: string) => {
-    // Case 1: already coordinates (lat, lng)
-    const coordMatch = locationStr.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
-    if (coordMatch) {
-      return {
-        lat: parseFloat(coordMatch[1]),
-        lng: parseFloat(coordMatch[2]),
-      };
-    }
-
-    // Case 2: free geocoding with Nominatim
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          locationStr
-        )}&limit=1&addressdetails=1`
-      );
-      const data = await response.json();
-
-      if (data && data.length > 0) {
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon),
-        };
-      }
-    } catch (error) {
-      console.error("Geocoding error:", error);
-    }
-
-    throw new Error(`Location "${locationStr}" not found. Please try again.`);
-  };
-
   const handleSearch = async () => {
     if (!productName.trim()) {
       toast({
@@ -225,108 +355,7 @@ export default function SearchResults() {
       return;
     }
 
-    setIsLoading(true);
-    setResults(null);
-
-    // Validate location before proceeding
-    let locationCoords = null;
-    try {
-      locationCoords = await geocodeLocation(location);
-    } catch (geocodeError) {
-      console.error('Location validation failed:', geocodeError);
-      toast({
-        title: "Invalid Location",
-        description: "Please enter a valid city or location that can be found on the map.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      // Step 1: Generate LLM-powered search strategies
-      const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
-        body: {
-          productName: productName.trim(),
-          location: location.trim()
-        }
-      });
-
-      // Step 2: Look for the categories on OverPass
-      const searchPromises = [];
-
-      if (strategiesResponse.error) {
-        console.error('Strategy generation failed:', strategiesResponse.error);
-        setIsLoading(false);
-        toast({
-          title: "Search Error",
-          description: `Failed to generate search strategies: ${strategiesResponse.error.message}`,
-          variant: "destructive",
-        });
-        return;
-      } else {
-        const storeCategories = strategiesResponse.data?.searchTerms || [];
-
-        // Use the categories directly for OSM search
-        const searchPromise = supabase.functions.invoke('search-osm-stores', {
-          body: {
-            userLat: locationCoords?.lat,
-            userLng: locationCoords?.lng,
-            radius: 5000,
-            categories: storeCategories
-          }
-        });
-        searchPromises.push(searchPromise.then(result => ({ source: 'openstreetmap', strategy: 'generated_categories', stores: result.data.stores, totalResults: result.data.totalResults })));
-      }
-
-      // Wait for all searches to complete
-      const allStores = (await Promise.all(searchPromises)).flat();
-      const osmStores = allStores[0];
-
-      // Check if we have results
-      if (osmStores.totalResults > 0) {
-        // Set final results
-        const searchResult = {
-          stores: osmStores.stores,
-          searchedProduct: productName,
-          totalResults: osmStores.totalResults
-        };
-        
-        setResults(searchResult);
-        sessionStorage.setItem('searchResults', JSON.stringify(searchResult));
-
-        toast({
-          title: "Search Complete",
-          description: `Found ${osmStores.totalResults} stores`,
-        });
-      } else {
-        // No stores found
-        const searchResult = {
-          stores: [],
-          searchedProduct: productName,
-          totalResults: 0
-        };
-        
-        setResults(searchResult);
-        sessionStorage.setItem('searchResults', JSON.stringify(searchResult));
-
-        toast({
-          title: "No Results",
-          description: "No stores found for this product",
-          variant: "default",
-        });
-      }
-
-    } catch (error) {
-      console.error('Search error:', error);
-      toast({
-        title: "Search Error",
-        description: "An error occurred while searching. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    performSearch(productName, location);
   };
 
   const getStoreTypeColor = (type: string) => {
@@ -498,9 +527,9 @@ export default function SearchResults() {
                             
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between mb-2">
-                                <h3 className="font-semibold text-lg truncate">{store.name}</h3>
+                                <h3 className="font-semibold text-lg truncate pr-2">{store.name}</h3>
                                 <Badge className={getStoreTypeColor(store.store_type)}>
-                                  {store.store_type.replace('_', ' ')}
+                                  {store.store_type}
                                 </Badge>
                               </div>
                               
@@ -508,7 +537,7 @@ export default function SearchResults() {
                                 <div className="flex items-center gap-2">
                                   <MapPin className="h-4 w-4 flex-shrink-0" />
                                   <span className="truncate">{store.address}</span>
-                                  <span className="text-xs bg-muted px-2 py-1 rounded">
+                                  <span className="flex-shrink-0 font-medium">
                                     {store.distance.toFixed(1)} km
                                   </span>
                                 </div>
@@ -520,9 +549,16 @@ export default function SearchResults() {
                                   </div>
                                 )}
                                 
-                                <div className="flex items-center gap-2">
-                                  <ExternalLink className="h-4 w-4 flex-shrink-0" />
-                                  <span className="text-xs">Click to view details</span>
+                                {store.openingHours.length > 0 && (
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4 flex-shrink-0" />
+                                    <span className="truncate">{store.openingHours[0]}</span>
+                                  </div>
+                                )}
+                                
+                                <div className="flex items-center gap-2 text-xs">
+                                  <Globe className="h-3 w-3 flex-shrink-0" />
+                                  <span>Source: {store.source}</span>
                                 </div>
                               </div>
                             </div>
@@ -534,23 +570,34 @@ export default function SearchResults() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground">No stores found for your search.</p>
+                  <Store className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No stores found</h3>
+                  <p className="text-muted-foreground">
+                    Try searching for a different product or location.
+                  </p>
                 </div>
               )}
             </div>
 
             {/* Map on the right */}
             <div className="flex-1">
-              <Card className="h-full">
-                <CardContent className="p-0 h-full">
-                  <StoreMap
-                    stores={results.stores}
-                    highlightedStoreId={highlightedStoreId}
-                    onStoreHover={setHighlightedStoreId}
-                  />
-                </CardContent>
-              </Card>
+              <StoreMap 
+                stores={results.stores} 
+                highlightedStoreId={highlightedStoreId}
+                onStoreHover={setHighlightedStoreId}
+              />
             </div>
+          </div>
+        )}
+
+        {/* Initial state when no results and not loading */}
+        {!results && !isLoading && (
+          <div className="text-center py-12">
+            <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">Start your search</h3>
+            <p className="text-muted-foreground">
+              Enter a product name and location to find nearby stores.
+            </p>
           </div>
         )}
       </div>

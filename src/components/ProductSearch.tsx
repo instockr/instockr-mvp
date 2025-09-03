@@ -302,13 +302,10 @@ export function ProductSearch() {
     }
 
     setIsLoading(true);
-    setResults(null);
 
-    // Validate location before proceeding
-    let locationCoords = null;
+    // Quick location validation
     try {
-      locationCoords = await geocodeLocation(location);
-      console.log('Location validated:', locationCoords);
+      await geocodeLocation(location);
     } catch (geocodeError) {
       console.error('Location validation failed:', geocodeError);
       toast({
@@ -320,104 +317,9 @@ export function ProductSearch() {
       return;
     }
 
-    // Always navigate to search page with empty results initially
-    const searchResult = {
-      stores: [],
-      searchedProduct: productName,
-      totalResults: 0
-    };
-    
-    sessionStorage.setItem('searchResults', JSON.stringify(searchResult));
-    
-    try {
-      // Step 1: Generate LLM-powered search strategies
-      console.log('Calling generate-search-strategies...');
-      const strategiesResponse = await supabase.functions.invoke('generate-search-strategies', {
-        body: {
-          productName: productName.trim(),
-          location: location.trim()
-        }
-      });
-
-      console.log('Strategy response:', strategiesResponse);
-
-      if (strategiesResponse.error) {
-        console.error('Strategy generation failed:', strategiesResponse.error);
-        // Navigate anyway with empty results
-        navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
-        toast({
-          title: "Search Started",
-          description: "Navigating to search page...",
-        });
-        return;
-      }
-
-      const storeCategories = strategiesResponse.data?.searchTerms || [];
-      console.log('Generated categories:', storeCategories);
-
-      if (storeCategories.length === 0) {
-        // Navigate with empty results
-        navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
-        toast({
-          title: "Search Started",
-          description: "No categories found, but navigating to search page...",
-        });
-        return;
-      }
-
-      // Step 2: Search for stores
-      console.log('Calling search-osm-stores...');
-      const osmResponse = await supabase.functions.invoke('search-osm-stores', {
-        body: {
-          userLat: locationCoords?.lat,
-          userLng: locationCoords?.lng,
-          radius: 5000,
-          categories: storeCategories
-        }
-      });
-
-      console.log('OSM response:', osmResponse);
-
-      if (osmResponse.error) {
-        console.error('OSM search failed:', osmResponse.error);
-        // Navigate anyway with empty results
-        navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
-        toast({
-          title: "Search Started",
-          description: "Store search failed, but navigating to search page...",
-        });
-        return;
-      }
-
-      // Update results with actual data
-      const finalResult = {
-        stores: osmResponse.data?.stores || [],
-        searchedProduct: productName,
-        totalResults: osmResponse.data?.totalResults || 0
-      };
-      
-      sessionStorage.setItem('searchResults', JSON.stringify(finalResult));
-      
-      // Navigate to results page
-      navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
-
-      toast({
-        title: "Search Complete",
-        description: `Found ${finalResult.totalResults} stores`,
-      });
-
-    } catch (error) {
-      console.error('Search error:', error);
-      // Navigate anyway even if there's an error
-      navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
-      toast({
-        title: "Navigation Complete",
-        description: "Error occurred but navigating to search page...",
-        variant: "default",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // Navigate immediately to search page
+    navigate(`/search?product=${encodeURIComponent(productName)}&location=${encodeURIComponent(location)}`);
+    setIsLoading(false);
   };
 
   const getStoreTypeColor = (type: string) => {
