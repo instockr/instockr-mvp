@@ -426,41 +426,10 @@ export default function SearchResults() {
               <Input
                 placeholder="Location..."
                 value={location}
-                onChange={(e) => {
-                  setLocation(e.target.value);
-                  setIsLocationAutoDetected(false);
-                }}
+                onChange={(e) => setLocation(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                onFocus={() => !isLocationAutoDetected && location.length > 2 && setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                 className="bg-background"
               />
-              
-              {showSuggestions && (
-                <div className="absolute top-full left-0 right-0 z-50 bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-2xl mt-2 max-h-48 overflow-y-auto">
-                  {isLoadingSuggestions ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                      <span className="ml-2 text-sm text-muted-foreground">Loading suggestions...</span>
-                    </div>
-                  ) : locationSuggestions.length > 0 ? (
-                    locationSuggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        className="w-full px-4 py-3 text-left hover:bg-muted/80 border-b border-border/30 last:border-b-0 flex items-center gap-3"
-                        onClick={() => handleLocationSelect(suggestion)}
-                      >
-                        <MapPin className="h-3 w-3" />
-                        <span className="font-medium">{suggestion}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-4 py-3 text-sm text-muted-foreground">
-                      No location suggestions found
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
             
             <Button onClick={getCurrentLocation} variant="outline" size="sm">
